@@ -9,6 +9,7 @@ import org.hibernate.HibernateException;
 import org.springframework.dao.DataAccessException;
 
 import javax.persistence.EntityManager;
+import javax.persistence.Query;
 import javax.persistence.TypedQuery;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
@@ -65,32 +66,28 @@ public class BeanRepository {
 
             SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:dd");
             String date = "2022-01-01 00:00:00";
-            Class.forName(DatabaseService.DB_CONNECTION_DRIVER);
-            Connection connection = DriverManager.getConnection(PriceEngineConstants.DATABASE_CONNECTION_URL, "pe_webuser", "pewebuser");
-            PreparedStatement stmt = connection.prepareStatement(INSERT_CUSTOMPRODUCTATTRIBUTE_QUERY, Statement.RETURN_GENERATED_KEYS);
+            Query q= entityManager.createNativeQuery(INSERT_CUSTOMPRODUCTATTRIBUTE_QUERY);
 
-            stmt.setInt(1, customProductAttribute.getItemId().intValue());
-            stmt.setInt(2, customProductAttribute.getContractComponent().getContractComponentId().intValue());
+            q.setParameter(1, customProductAttribute.getItemId().intValue());
+            q.setParameter(2, customProductAttribute.getContractComponent().getContractComponentId().intValue());
             //stmt.setNString(3, getCustomAttributes().toString());
 
-            stmt.setDate(3, new java.sql.Date(df.parse(date).getTime()));
-            stmt.setInt(4,1);
+            q.setParameter(3, new java.sql.Date(df.parse(date).getTime()));
+            q.setParameter(4,1);
             if(null!=customProductAttribute.applicabilityCriteriaEntity)
-                stmt.setLong(5,customProductAttribute.applicabilityCriteriaEntity.getApplicabilityCriteriaId());
+            	q.setParameter(5,customProductAttribute.applicabilityCriteriaEntity.getApplicabilityCriteriaId());
             else
-                stmt.setNull(5,Types.INTEGER);
-            stmt.setNull(6, Types.VARCHAR);
+            	q.setParameter(5,Types.INTEGER);
+            q.setParameter(6, Types.VARCHAR);
             if(null!=customProductAttribute.getApplJourneyTpCd())
-                stmt.setInt(7, customProductAttribute.getApplJourneyTpCd());
+            	q.setParameter(7, customProductAttribute.getApplJourneyTpCd());
             else
-                stmt.setNull(7,Types.INTEGER);
-            int i = stmt.executeUpdate();
-            ResultSet rs = stmt.getGeneratedKeys();
-            if (rs.next()) {
-                 System.out.println("CustomerProductAttribute has been created ID- "+ rs.getLong(1));
-            }
+            	q.setParameter(7,Types.INTEGER);
+            int i = q.executeUpdate();
+            Integer id = (Integer) q.getSingleResult();
+            Long customProductAttributeId = id.longValue();
+               System.out.println("CustomerProductAttribute has been created ID- "+ customProductAttributeId);
 
-            connection.close();
 
             System.out.println("New CustomProductAttribute has been created");
 
