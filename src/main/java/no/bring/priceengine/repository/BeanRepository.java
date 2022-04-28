@@ -62,6 +62,7 @@ public class BeanRepository {
     public void insertCustomerProdAttribute(CustomProductAttribute customProductAttribute){
 
         EntityManager entityManager = JPAUtil.getEntityManagerFactory().createEntityManager();
+        entityManager.getTransaction().begin();
         try {
 
             SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:dd");
@@ -84,10 +85,11 @@ public class BeanRepository {
             else
             	q.setParameter(7,Types.INTEGER);
             int i = q.executeUpdate();
+            entityManager.getTransaction().commit();
             Integer id = (Integer) q.getSingleResult();
             Long customProductAttributeId = id.longValue();
                System.out.println("CustomerProductAttribute has been created ID- "+ customProductAttributeId);
-
+               entityManager.close();
 
             System.out.println("New CustomProductAttribute has been created");
 
