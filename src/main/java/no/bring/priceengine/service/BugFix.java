@@ -30,6 +30,7 @@ System.out.println("asdasdasd"  + contractdumps.size());
     public List<Contractdump> findUpdatedContractdumps() throws DataAccessException {
         System.out.println("Inside findAllContractdumps() ");
         EntityManager em = JPAUtil.getEntityManagerFactory().createEntityManager();
+        
         try {
             CriteriaBuilder builder = em.getCriteriaBuilder();
             CriteriaQuery<Contractdump> query = builder.createQuery(Contractdump.class);
