@@ -3051,6 +3051,7 @@ public class DatabaseService {
             entityManager.getTransaction().commit();
             System.out.println("New Party has been created");
 
+            
         } catch (Exception e) {
             e.printStackTrace();
             System.out.println("Error while creating new Party");
