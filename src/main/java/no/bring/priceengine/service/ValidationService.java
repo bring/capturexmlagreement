@@ -1,21 +1,20 @@
 package no.bring.priceengine.service;
 
-import cdh.CustomerCacheServiceImpl;
-import cdh.CustomerModel;
-import no.bring.priceengine.dao.Price;
-import no.bring.priceengine.dao.SlabBasedPriceEntry;
-import no.bring.priceengine.database.DatabaseService;
-import no.bring.priceengine.database.JPAUtil;
-import no.bring.priceengine.util.PriceEngineConstants;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 
 import javax.persistence.EntityManager;
 import javax.persistence.Query;
 import javax.transaction.Transactional;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.Statement;
-import java.util.*;
+
+import cdh.CustomerCacheServiceImpl;
+import cdh.CustomerModel;
+import no.bring.priceengine.dao.SlabBasedPriceEntry;
+import no.bring.priceengine.database.DatabaseService;
+import no.bring.priceengine.database.JPAUtil;
 
 public class ValidationService {
     enum  ContractProcessing {
@@ -67,13 +66,11 @@ public class ValidationService {
     @Transactional
     public void updateItemInPriceTable(Integer priceId, Integer contractPriceItemId){
         try {
-            Class.forName(PriceEngineConstants.DATABASE_CONNECTION_URL);
-            Connection connection = DriverManager.getConnection(PriceEngineConstants.DATABASE_CONNECTION_URL, "pe_webuser", "pewebuser");
-            PreparedStatement stmt = connection.prepareStatement("update core.price set item_id=? where price_id = ?");
-            stmt.setInt(1, contractPriceItemId);
-            stmt.setInt(2,  priceId);
-            stmt.executeUpdate();
-            connection.close();
+        	EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+            Query q= entityManager.createNativeQuery("update core.price set item_id=? where price_id = ?");
+            q.setParameter(1, contractPriceItemId);
+            q.setParameter(2,  priceId);
+            q.executeUpdate();
         }catch (Exception e){
             e.printStackTrace();
             System.exit(1);
@@ -234,14 +231,11 @@ public class ValidationService {
     @Transactional
     private void updateContractPriceProcessingDetails(String priceId, Integer processingId){
         try {
-
-            Class.forName(DatabaseService.DB_CONNECTION_DRIVER);
-            Connection connection = DriverManager.getConnection(PriceEngineConstants.DATABASE_CONNECTION_URL, "pe_webuser", "pewebuser");
-            PreparedStatement stmt = connection.prepareStatement(DatabaseService.UPDATE_CONTRACTPRICE_SQL, Statement.RETURN_GENERATED_KEYS);
-            stmt.setInt(1,processingId);
-            stmt.setLong(2, new Long(priceId));
-            int i = stmt.executeUpdate();
-            connection.close();
+        	EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+            Query q=entityManager.createNativeQuery(DatabaseService.UPDATE_CONTRACTPRICE_SQL);
+            q.setParameter(1,processingId);
+            q.setParameter(2, new Long(priceId));
+            int i = q.executeUpdate();
             return;
 
         }catch (Exception e){

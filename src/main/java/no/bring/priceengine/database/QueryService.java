@@ -952,31 +952,48 @@ public class QueryService {
         }
         String sql_final = SELECT_PERCENTAGEBASEDCONTRACTDUMP + whereClause;
         try {
-            if (con == null || con.isClosed()) {
-                con = DriverManager.getConnection("jdbc:postgresql://139.114.164.201:5432/priceengine_crossborder_prod?ApplicationName=PriceengineExcelToDatabase", "postgres", "pr1ceeng1ne");
-            }
-            Statement stmt = con.createStatement();
-            ResultSet resultSet = stmt.executeQuery(sql_final);
-            while (resultSet.next()) {
+        	EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+        	List<Query> query=entityManager.createNativeQuery(sql_final).getResultList();
+        	Iterator listIterator = query.listIterator();
+            while (listIterator.hasNext()) {
+                Object[] object = (Object[]) listIterator.next();
                 Percentagebaseddeltadump dump = new Percentagebaseddeltadump();
-                dump.setBranch(resultSet.getInt("branch"));
-                dump.setParentCustomerNumber(resultSet.getString("parent_customer_number"));
-                dump.setParentCustomerName(resultSet.getString("parent_customer_name"));
-                dump.setCustomerNumber(resultSet.getString("customer_number"));
-                dump.setCustomerName(resultSet.getString("customer_name"));
-                dump.setProdno(resultSet.getInt("prodno"));
-                dump.setStartdate(resultSet.getDate("startdate"));
-                dump.setEnddate(resultSet.getDate("enddate"));
-                dump.setRouteType(resultSet.getString("routetype"));
-                dump.setFromLocation(resultSet.getString("from_location"));
-                dump.setToLocation(resultSet.getString("to_location"));
-                dump.setPrecentageDiscount((resultSet.getString("precentage_discount")));
-                dump.setUpdated(resultSet.getBoolean("updated"));
-                dump.setEnabled(resultSet.getBoolean("enabled"));
-                dump.setFileCountry(resultSet.getString("filecountry"));
-                dump.setZoneType(resultSet.getString("zone_type"));
-                dump.setRemark(resultSet.getString("remark"));
-                dump.setPriceId(Long.valueOf(resultSet.getInt("price_id")));
+                if(null!=object[1])
+                	dump.setBranch(Integer.parseInt(object[1].toString()));
+                if(null!=object[2])
+                	dump.setParentCustomerNumber(object[2].toString()); 
+                if(null!=object[3])
+                	dump.setParentCustomerName(object[3].toString());
+                if(null!=object[4])
+                	dump.setCustomerNumber(object[4].toString());
+                if(null!=object[5])
+                	dump.setCustomerName(object[5].toString());
+                if(null!=object[6])
+                	dump.setProdno(Integer.parseInt(object[6].toString()));
+                if(null!=object[7])
+                	dump.setStartdate(java.sql.Timestamp.valueOf(((Timestamp) object[7]).toLocalDateTime()));
+                if(null!=object[8])
+                	dump.setEnddate(java.sql.Timestamp.valueOf(((Timestamp) object[8]).toLocalDateTime()));
+                if(null!=object[9])
+                	dump.setRouteType(object[9].toString());
+                if(null!=object[10])
+                	dump.setFromLocation(object[10].toString());
+                if(null!=object[11])
+                	dump.setToLocation(object[11].toString());
+                if(null!=object[12])
+                	dump.setPrecentageDiscount(object[12].toString());
+                if(null!=object[13])
+                	dump.setUpdated(Boolean.parseBoolean(object[13].toString()));
+                if(null!=object[14])
+                	dump.setEnabled(Boolean.parseBoolean(object[14].toString()));
+                if(null!=object[15])
+                	dump.setFileCountry(object[15].toString());
+                if(null!=object[16])
+                	dump.setZoneType(object[16].toString());
+                if(null!=object[17])
+                	dump.setRemark(object[17].toString());
+                if(null!=object[18])
+                	dump.setPriceId(Long.parseLong(object[18].toString()));
                 dumps.add(dump);
             }
             int insertCount = dumps.size();
@@ -3506,85 +3523,77 @@ public class QueryService {
         String sql_final = SELECT_DELTACONTRACTDUMP + whereClause;
 
         try {
-
-            if (con == null || con.isClosed()) {
-
-                con = DriverManager.getConnection("jdbc:postgresql://139.114.164.201:5432/priceengine_crossborder_prod?ApplicationName=PriceengineExcelToDatabase", "postgres", "pr1ceeng1ne");
-
-            }
-
+        	EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+            
+        	
             Statement stmt = con.createStatement();
 
-            ResultSet resultSet = stmt.executeQuery(sql_final);
-
-            while (resultSet.next()) {
+            List<Query> query=entityManager.createNativeQuery(sql_final).getResultList();
+            
+            Iterator itr=query.listIterator();
+            
+            while (itr.hasNext()) {
 
                 Deltacontractdump deltacontractdump = new Deltacontractdump();
-
-                Integer dsclimcd = resultSet.getString("dsclimcd") != null && resultSet.getString("dsclimcd").equalsIgnoreCase("null") ? null : Integer.parseInt(resultSet.getString("dsclimcd"));
-
-                Double disclmtFrom = resultSet.getDouble("disclmtfrom") == -1 ? null : resultSet.getDouble("disclmtfrom");
-
-                deltacontractdump.setOrganizationNumber(resultSet.getString("organization_number"));
-
-                deltacontractdump.setOrganizationName(resultSet.getString("organization_name"));
-
-                deltacontractdump.setCustomerNumber(resultSet.getString("customer_number"));
-
-                deltacontractdump.setCustomerName(resultSet.getString("customer_name"));
-
-                deltacontractdump.setDiv(9999);
-
-                deltacontractdump.setArtikelgrupp(9999);
-
-                deltacontractdump.setStatGrupp("9999");
-
-                deltacontractdump.setProdNo(resultSet.getInt("prodno"));
-
-                deltacontractdump.setProdDescr(resultSet.getString("proddescription"));
-
-                deltacontractdump.setRouteFrom(resultSet.getString("routefrom"));
-
-                deltacontractdump.setRouteTo(resultSet.getString("routeto"));
-
-                deltacontractdump.setFromDate(resultSet.getDate("startdate"));
-
-                deltacontractdump.setToDate(resultSet.getDate("todate"));
-
-                deltacontractdump.setCreateddate(resultSet.getDate("createddate"));
-
-                deltacontractdump.setBasePrice(resultSet.getDouble("baseprice"));
-
-                deltacontractdump.setCurr(resultSet.getString("currency"));
-
-                deltacontractdump.setPrUM(resultSet.getString("prum"));
-
+                Object[] object = (Object[]) itr.next();
+                Integer dsclimcd=  object[17] != null && object[17].toString().equalsIgnoreCase("null") ? null : Integer.parseInt(object[17].toString());
+                Double disclmtFrom= object[18]!=null && Double.parseDouble(object[18].toString()) == -1 ? null :  Double.parseDouble(object[18].toString());
+                if(null!=object[0])
+                	deltacontractdump.setOrganizationNumber(object[0].toString());
+                if(null!=object[1])
+                	deltacontractdump.setOrganizationName(object[1].toString());
+                if(null!=object[2])
+                	deltacontractdump.setCustomerNumber(object[2].toString());
+                if(null!=object[3])
+                	deltacontractdump.setCustomerName(object[3].toString());
+               	deltacontractdump.setDiv(9999);
+               	deltacontractdump.setArtikelgrupp(9999);
+               	deltacontractdump.setStatGrupp("9999");
+                if(null!=object[7])
+                	deltacontractdump.setProdNo(Integer.parseInt(object[7].toString()));
+                if(null!=object[8])
+                	deltacontractdump.setProdDescr(object[8].toString());
+                if(null!=object[9])
+                	deltacontractdump.setRouteFrom(object[9].toString());
+                if(null!=object[10])
+                	deltacontractdump.setRouteTo(object[10].toString());
+                if(null!=object[11])
+                	deltacontractdump.setFromDate(java.sql.Timestamp.valueOf(((Timestamp)object[11]).toLocalDateTime()));
+                if(null!=object[12])
+                	deltacontractdump.setToDate(java.sql.Timestamp.valueOf(((Timestamp)object[12]).toLocalDateTime()));
+                if(null!=object[13])
+                	deltacontractdump.setCreateddate(java.sql.Timestamp.valueOf(((Timestamp)object[13]).toLocalDateTime()));
+                if(null!=object[14])
+                	deltacontractdump.setBasePrice(Double.parseDouble(object[14].toString()));
+                if(null!=object[15])
+                	deltacontractdump.setCurr(object[15].toString());
+                if(null!=object[16])
+                	deltacontractdump.setPrUM(object[16].toString());
                 deltacontractdump.setDscLimCd(dsclimcd);
-
                 deltacontractdump.setDiscLmtFrom(disclmtFrom);
-
-                deltacontractdump.setPrice(resultSet.getDouble("price"));
-
-                deltacontractdump.setADsc(resultSet.getInt("adsc"));
-
-                deltacontractdump.setKgTill(resultSet.getString("kgtill"));
-
-                deltacontractdump.setUpdated(resultSet.getBoolean("updated"));
-
-                deltacontractdump.setFileCountry(resultSet.getString("filecountry"));
-
-                deltacontractdump.setEnabled(resultSet.getBoolean("enabled"));
-
-                deltacontractdump.setRouteType(resultSet.getString("routetype"));
-
-                deltacontractdump.setZoneType(resultSet.getString("zone_type"));
-
-                deltacontractdump.setRemark(resultSet.getString("remark"));
-
-                deltacontractdump.setCreateddate(resultSet.getDate("createdate"));
-
-                deltacontractdump.setPriceId(resultSet.getInt("price_id"));
-
+                if(null!=object[19])
+                	deltacontractdump.setPrice(Double.parseDouble(object[19].toString()));
+                if(null!=object[20])
+                	deltacontractdump.setADsc(Integer.parseInt(object[20].toString()));
+                if(null!=object[21])
+                	deltacontractdump.setKgTill(object[21].toString());
+                if(null!=object[22])
+                	deltacontractdump.setUpdated(Boolean.valueOf(object[22].toString()));
+                if(null!=object[23])
+                	deltacontractdump.setFileCountry(object[23].toString());
+                if(null!=object[24])
+                	deltacontractdump.setEnabled(Boolean.valueOf(object[24].toString()));
+                if(null!=object[25])
+                	deltacontractdump.setRouteType(object[25].toString());
+                if(null!=object[26])
+                	deltacontractdump.setZoneType(object[26].toString());
+                if(null!=object[27])
+                	deltacontractdump.setRemark(object[27].toString());
+                if(null!=object[28])
+                	deltacontractdump.setCreateddate(java.sql.Timestamp.valueOf(((Timestamp)object[28]).toLocalDateTime()));
+                if(null!=object[29])
+                	deltacontractdump.setPriceId(Integer.parseInt(object[29].toString()));
+                
                 deltacontractdumps.add(deltacontractdump);
 
             }
