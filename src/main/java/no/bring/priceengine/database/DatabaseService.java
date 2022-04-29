@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
 public class DatabaseService {
     public static final String AUTOMATION_USER = "Automation";
     private final String UPDATE_DELTACONTRACTDUMP = "UPDATE core.deltacontractdump ";
-    public static final String DB_CONNECTION_DRIVER = "org.postgresql.Driver";
+//    public static final String DB_CONNECTION_DRIVER = "org.postgresql.Driver";
     public static final String UPDATE_CONTRACTPRICE_SQL = "UPDATE core.contractprice SET contractprice_processing_tp_cd=? WHERE price_id=?";
     public static final String UPDATE_CONTRACTPRICE_PRIORITY_SQL = "UPDATE core.contractprice SET priority=? WHERE price_id=?";
     private static final Integer SIGNER_ROLE_TP_CD = new Integer(1);
@@ -66,7 +66,7 @@ public class DatabaseService {
     private static final String FROM_ZONE_NULL_TO_ZONE_NOT_NULL = "FROM_ZONE_NULL_TO_ZONE_NOT_NULL";
     private static final String FROM_ZONE_NOT_NULL_TO_ZONE_NULL = "FROM_ZONE_NOT_NULL_TO_ZONE_NULL";
     private static final String ONLY_FROM_TO_COUNTRY = "ONLY_FROM_TO_COUNTRY";
-    static Connection con;
+//    static Connection con;
     final String INSERT_PERCENTAGE_CONTRACTPRICE_SQL = "  INSERT INTO core.contractprice"
             + " ( price_id, sequence, contractprice_application_tp_cd, contractprice_adjustment_tp_cd, priority, contractcomponent_id, formula"
             + ", source_reference, contractprice_st_tp_cd, item_id_dup, applicabilitycriteria_id"
@@ -299,11 +299,10 @@ public class DatabaseService {
         try {
             
             EntityManager entityManager = JPAUtil.getEntityManagerFactory().createEntityManager();
-            Statement stmt = con.createStatement();
+//            Statement stmt = con.createStatement();
             String discLmtFrom = deltacontractdump.getDiscLmtFrom() == null ? String.valueOf(-1) : String.valueOf(deltacontractdump.getDiscLmtFrom());
             String fromRoute = isEmpty(deltacontractdump.getRouteFrom()) ? "NULL" : deltacontractdump.getRouteFrom();
             String toRoute = isEmpty(deltacontractdump.getRouteTo()) ? "NULL" : deltacontractdump.getRouteTo();
-
             String endDateStr = null;
             if(null!=deltacontractdump.getToDate())
                 endDateStr = getDateAsString(deltacontractdump.getToDate());
@@ -324,7 +323,7 @@ public class DatabaseService {
                     "','" + getDateAsString(deltacontractdump.getFromDate()) +
                     "','" + endDateStr +
 
-                    "',now()::date" +
+                    "', current_timestamp" +
                     "," + deltacontractdump.getBasePrice() +
                     ",'" + deltacontractdump.getCurr() +
                     "','" + deltacontractdump.getPrUM() +
@@ -339,11 +338,14 @@ public class DatabaseService {
                     "','" + deltacontractdump.getRouteType() +
                     "','" + deltacontractdump.getZoneType() +
                     "','" + deltacontractdump.getRemark() +
-                    "',now()::date" +
+                    "',current_timestamp " +
                     "," + deltacontractdump.getPriceId() +
                     ")";
             String sql_final = INSERT_DELTACONTRACTDUMP + values;
+            entityManager.getTransaction().begin();
            int insertCount=entityManager.createNativeQuery(sql_final).executeUpdate();
+           entityManager.getTransaction().commit();
+           entityManager.close();
             return insertCount;
         } catch (Exception ex) {
             logger.warning("Error[" + ex.getMessage() + "] while processing delta for: OrganizationNumber[{" + deltacontractdump.getOrganizationNumber() + "}],customerNumber[{" + deltacontractdump.getCustomerNumber() + "}],RouteFrom[{" + deltacontractdump.getRouteFrom() + "}],RouteTo[{" + deltacontractdump.getRouteTo() + "}],ProdNo[{" + deltacontractdump.getProdNo() + "}],Price[{" + deltacontractdump.getBasePrice() + "}]");
@@ -387,8 +389,11 @@ public class DatabaseService {
                //     "',now()::date" +
 
                     ")";
+            entityManager.getTransaction().begin();
             String sql_final = INSERT_PERCENTAGEBASEDDELTADUMP + values;
            int insertCount= entityManager.createNativeQuery(sql_final).executeUpdate();
+           entityManager.getTransaction().commit();
+           entityManager.close();
             return insertCount;
         } catch (Exception ex) {
             logger.warning("Error[" + ex.getMessage() + "] while processing delta for: ParentCustomerNumber[{" + percentagebaseddeltadump.getParentCustomerNumber() + "}],customerNumber[{" + percentagebaseddeltadump.getCustomerNumber() + "}],FromLocation[{" + percentagebaseddeltadump.getFromLocation() + "}],ToLocation[{" + percentagebaseddeltadump.getToLocation() + "}],ProdNo[{" + percentagebaseddeltadump.getProdno() + "}],Price[{" + percentagebaseddeltadump.getPrecentageDiscount() + "}]");
@@ -745,7 +750,7 @@ public class DatabaseService {
         try {
            
             EntityManager entityManager = JPAUtil.getEntityManagerFactory().createEntityManager();
-            
+            entityManager.getTransaction().begin();
             int insertCount=0;
             for (Percentagebaseddeltadump d : deltacontractdumps) {
                 if(null!=d.getZoneType() && d.getZoneType().equalsIgnoreCase("null"))
@@ -754,12 +759,14 @@ public class DatabaseService {
                     d.setFromLocation("NULL");
                 if(null==d.getToLocation())
                     d.setToLocation("NULL");
-                String setClause = " SET remark='" + remark + "', updated= '" + isUpdated + "'::boolean ";
-                String whereClause = " WHERE parent_customer_number ='" + d.getParentCustomerNumber() + "' AND customer_number='" + d.getCustomerNumber() + "' AND prodno='" + d.getProdno() + "'::integer AND from_location='" +
-                        d.getFromLocation() + "' AND to_location='" + d.getToLocation() + "' AND startdate='" + getDateAsString(d.getStartdate()) + "'::date AND enddate='" + getDateAsString(d.getEnddate()) + "'::date AND precentage_discount='" +
+                String setClause = " SET remark='" + remark + "', updated= '" + isUpdated + "'\\:\\:boolean ";
+                String whereClause = " WHERE parent_customer_number ='" + d.getParentCustomerNumber() + "' AND customer_number='" + d.getCustomerNumber() + "' AND prodno='" + d.getProdno() + "'\\:\\:integer AND from_location='" +
+                        d.getFromLocation() + "' AND to_location='" + d.getToLocation() + "' AND startdate='" + getDateAsString(d.getStartdate()) + "'\\:\\:date AND enddate='" + getDateAsString(d.getEnddate()) + "'\\:\\:date AND precentage_discount='" +
                         d.getPrecentageDiscount() + "' AND routetype='" + d.getRouteType() + "'";
                 String final_sql = "UPDATE core.percentagebaseddeltadump " + setClause + whereClause;
                 insertCount+=entityManager.createNativeQuery(final_sql).executeUpdate();
+                entityManager.getTransaction().commit();
+                entityManager.close();
             }
             return insertCount;
         } catch (Exception ex) {
@@ -843,7 +850,7 @@ public class DatabaseService {
         LocalDate endDateTime = endInstant.atZone(defaultZone).toLocalDate();
 
         if (party == null)
-            System.out.println("wait contractcomponent - " + contractComponent.getContractComponentId() + " :::: contractdump - " + contractdump.getId());
+            System.out.println("wait contractcomponent - " + contractComponent.getContractComponentId() + " \\:\\:\\:\\: contractdump - " + contractdump.getId());
         if (party != null && party.getParentSourceSystemRecordPk() == null)
             signerRole.setContractRoleTpCd(1);
         else
@@ -875,7 +882,7 @@ public class DatabaseService {
         Date endDateTime = dateFormat.parse(endDate);
 
         if (party == null)
-            System.out.println("wait contractcomponent - " + contractComponent.getContractComponentId() + " :::: surchargedump - " + surchargedump.getId());
+            System.out.println("wait contractcomponent - " + contractComponent.getContractComponentId() + " \\:\\:\\:\\: surchargedump - " + surchargedump.getId());
         if (party != null && party.getParentSourceSystemRecordPk() == null)
             signerRole.setContractRoleTpCd(1);
         else
@@ -1133,17 +1140,20 @@ public class DatabaseService {
     public int updateDeltaContractDumpUsingJDBC(List<Deltacontractdump> deltacontractdumps, String remark, boolean isUpdated, Logger logger) {
         try {
             EntityManager entityManager = JPAUtil.getEntityManagerFactory().createEntityManager();
-            
+            entityManager.getTransaction().begin();
             int insertCount=0;
             for (Deltacontractdump d : deltacontractdumps) {
                Double discLmtFrom = d.getDiscLmtFrom()==null?-1:d.getDiscLmtFrom();
-                String setClause = " SET remark='" + remark + "', updated= '" + isUpdated + "'::boolean ";
-                String whereClause = " WHERE organization_number='" + d.getOrganizationNumber() + "' AND customer_number='" + d.getCustomerNumber() + "' AND prodno='" + d.getProdNo() + "'::integer AND routefrom='" +
-                        d.getRouteFrom().toUpperCase() + "' AND routeto='" + d.getRouteTo().toUpperCase() + "' AND startdate='" + getDateAsString(d.getFromDate()) + "'::date AND todate='" + getDateAsString(d.getToDate()) + "'::date AND baseprice='" +
-                        d.getBasePrice() + "'::DECIMAL AND disclmtfrom='" +discLmtFrom + "'::DECIMAL";
+                String setClause = " SET remark='" + remark + "', updated= '" + isUpdated + "'\\:\\:boolean ";
+                String whereClause = " WHERE organization_number='" + d.getOrganizationNumber() + "' AND customer_number='" + d.getCustomerNumber() + "' AND prodno='" + d.getProdNo() + "'\\:\\:integer AND routefrom='" +
+                        d.getRouteFrom().toUpperCase() + "' AND routeto='" + d.getRouteTo().toUpperCase() + "' AND startdate='" + getDateAsString(d.getFromDate()) + "'\\:\\:date AND todate='" + getDateAsString(d.getToDate()) + "'\\:\\:date AND baseprice='" +
+                        d.getBasePrice() + "'\\:\\:DECIMAL AND disclmtfrom='" +discLmtFrom + "'\\:\\:DECIMAL";
                 String final_sql = UPDATE_DELTACONTRACTDUMP + setClause + whereClause;
+                
                 insertCount+=entityManager.createNativeQuery(final_sql).executeUpdate();
             }
+            entityManager.getTransaction().commit();
+            entityManager.close();
             return insertCount;
         } catch (Exception ex) {
             return 0;
@@ -1181,7 +1191,8 @@ public class DatabaseService {
     public int updateSingleDeltaContractDumpUsingJDBC(Deltacontractdump d, String remark, boolean isUpdated, Logger logger) {
         try {
            
-            EntityManager entityManger=JPAUtil.getEntityManagerFactory().createEntityManager();
+            EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+            entityManager.getTransaction().begin();
             String setClause = null;
             int insertCount=0;
             if(d.getRouteFrom()==null)
@@ -1191,15 +1202,17 @@ public class DatabaseService {
             if(d.getDiscLmtFrom()==null)
                 d.setDiscLmtFrom(new Double(-1));
             if(d.getPriceId()!=0)
-                 setClause = " SET price_id= "+ d.getPriceId() +", remark='" + remark + "', updated= '" + isUpdated + "'::boolean ";
+                 setClause = " SET price_id= "+ d.getPriceId() +", remark='" + remark + "', updated= '" + isUpdated + "'\\:\\:boolean ";
             else
-                setClause = " SET remark='" + remark + "', updated= '" + isUpdated + "'::boolean ";
+                setClause = " SET remark='" + remark + "', updated= '" + isUpdated + "'\\:\\:boolean ";
 
-                String whereClause = " WHERE organization_number='" + d.getOrganizationNumber() + "' AND customer_number='" + d.getCustomerNumber() + "' AND prodno='" + d.getProdNo() + "'::integer AND routefrom='" +
-                        d.getRouteFrom().toUpperCase() + "' AND routeto='" + d.getRouteTo().toUpperCase() + "' AND startdate='" + getDateAsString(d.getFromDate()) + "'::date AND todate='" + getDateAsString(d.getToDate()) + "'::date AND baseprice='" +
-                        d.getBasePrice() + "'::DECIMAL AND disclmtfrom='" + d.getDiscLmtFrom() + "'::DECIMAL";
+                String whereClause = " WHERE organization_number='" + d.getOrganizationNumber() + "' AND customer_number='" + d.getCustomerNumber() + "' AND prodno='" + d.getProdNo() + "'\\:\\:integer AND routefrom='" +
+                        d.getRouteFrom().toUpperCase() + "' AND routeto='" + d.getRouteTo().toUpperCase() + "' AND startdate='" + getDateAsString(d.getFromDate()) + "'\\:\\:date AND todate='" + getDateAsString(d.getToDate()) + "'\\:\\:date AND baseprice='" +
+                        d.getBasePrice() + "'\\:\\:DECIMAL AND disclmtfrom='" + d.getDiscLmtFrom() + "'\\:\\:DECIMAL";
                 String final_sql = "update core.deltacontractdump "+ setClause + whereClause;
                 insertCount+=entityManager.createNativeQuery(final_sql).executeUpdate();
+                entityManager.getTransaction().commit();
+                entityManager.close();
             return insertCount;
         } catch (Exception ex) {
             ex.printStackTrace();
@@ -1331,6 +1344,7 @@ public class DatabaseService {
     public void updateStartDateINPrice(Long priceId, LocalDate startDate, LocalDate endDate) {
         try {
             EntityManager entityManager = JPAUtil.getEntityManagerFactory().createEntityManager();
+            entityManager.getTransaction().begin();
             String SQL="update core.price set start_dt=? , end_dt=?, last_update_dt=? where price_id= ?";
             
             Query q=entityManager.createNativeQuery(SQL);
@@ -1342,6 +1356,8 @@ public class DatabaseService {
             	q.setParameter(3, Types.DATE);
             q.setParameter(4, priceId);
             q.executeUpdate();
+            entityManager.getTransaction().commit();
+            entityManager.close();
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -1355,13 +1371,15 @@ public class DatabaseService {
     public void updateEndDateINOldPrice(Long priceId, LocalDate endDate) {
         try {
             EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+            entityManager.getTransaction().begin();
             String SQL="update core.price set end_dt=?, last_update_dt=? where price_id= ?";
             Query q= entityManager.createNativeQuery(SQL);
             q.setParameter(1, java.sql.Date.valueOf(endDate));
             q.setParameter(2, java.sql.Date.valueOf(LocalDate.now()));
             q.setParameter(3, priceId);
             q.executeUpdate();
-
+            entityManager.getTransaction().commit();
+            entityManager.close();
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(1);
@@ -1403,6 +1421,7 @@ public class DatabaseService {
                 toDateDBByZone = toInstantByDB.atZone(defaultZone).toLocalDateTime();
             }
             EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+            entityManager.getTransaction().begin();
             String SQL = INSERT_PRICE_SQL;
             Query q=entityManager.createNativeQuery(SQL);
             if (priceType.equals(ExcelService.BASE_PRICE))
@@ -1448,7 +1467,8 @@ public class DatabaseService {
             
             Integer id = (Integer) q.getSingleResult();
             priceId = id.longValue();
-            
+            entityManager.getTransaction().commit();
+            entityManager.close();
             return priceId;
 
         } catch (Exception e) {
@@ -1463,6 +1483,7 @@ public class DatabaseService {
     public void insertPriceHistory(Price price) {
         try {
         	EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+        	entityManager.getTransaction().begin();
             Query q = entityManager.createNativeQuery(INSERT_PRICE_HISTORY_SQL);
 
             if (null != price.getBasePrice())
@@ -1494,7 +1515,8 @@ public class DatabaseService {
             q.setParameter(21, Types.DATE); // cehck what date is saving
             q.setParameter(22, price.getPriceId());
             int i = q.executeUpdate();
-
+            entityManager.getTransaction().commit();
+            entityManager.close();
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(1);
@@ -1516,6 +1538,7 @@ public class DatabaseService {
             java.sql.Timestamp endDt = new java.sql.Timestamp(parsedEndDate.getTime());
 
             EntityManager entityManager= JPAUtil.getEntityManagerFactory().createEntityManager();
+            entityManager.getTransaction().begin();
             Query q=entityManager.createNativeQuery(INSERT_PERCENTAGEBASED_PRICE_SQL);
             //if(null!=contractdump.getPrecentageDiscount())
             Double d = new Double(contractdump.getPrecentageDiscount());
@@ -1548,10 +1571,11 @@ public class DatabaseService {
             else
             	q.setParameter(18, new java.sql.Date(startDate.getTime()));
             int i = q.executeUpdate();
+            entityManager.getTransaction().commit();
             Integer id = (Integer) q.getSingleResult();
             priceId = id.longValue();
             
-
+            entityManager.close();
             return priceId;
 
         } catch (Exception e) {
@@ -1590,6 +1614,7 @@ public class DatabaseService {
             Date parsedEndDate = df.parse(endDate);
             java.sql.Timestamp endDt = new java.sql.Timestamp(parsedEndDate.getTime());
             EntityManager entityManager= JPAUtil.getEntityManagerFactory().createEntityManager();
+            entityManager.getTransaction().begin();
             Query q = entityManager.createNativeQuery(INSERT_SURCHARGE_PERCENTAGEBASED_PRICE_SQL);
             //if(null!=contractdump.getPrecentageDiscount())
             q.setParameter(1, percentValue);
@@ -1616,9 +1641,10 @@ public class DatabaseService {
             q.setParameter(18, new java.sql.Date(startDate.getTime()));
             q.setParameter(19, priceId.longValue());
             int i = q.executeUpdate();
+            entityManager.getTransaction().commit();
             priceId = (Integer) q.getSingleResult();
 
-
+            entityManager.close();
             return priceId.longValue();
 
         } catch (Exception e) {
@@ -1766,6 +1792,7 @@ public class DatabaseService {
     private Long insertFirstSlabbasedEnteryValue(Long slabbasedId, Contractdump contractdump) {
         try {
         	EntityManager entityManager= JPAUtil.getEntityManagerFactory().createEntityManager();
+        	entityManager.getTransaction().begin();
             Query q = entityManager.createNativeQuery(INSERT_SLABBASEDPRICEENTRIES_SQL);
             java.util.Date date = new java.util.Date();
             q.setParameter(1, slabbasedId);
@@ -1778,9 +1805,10 @@ public class DatabaseService {
             q.setParameter(5, false);
 
             int i = q.executeUpdate();
+            entityManager.getTransaction().commit();
             Integer id = (Integer) q.getSingleResult();
                 slabbasedId = id.longValue();
-
+                entityManager.close();
 
             //     slabbasedId = queryService.findMaxSlabbasedPriceId();
 
@@ -1789,7 +1817,7 @@ public class DatabaseService {
             nf.printStackTrace();
             System.exit(1);
         }catch (Exception sql) {
-            System.out.println("Details ::  " + contractdump.getOrganizationNumber() + " ProdNo ::  " + contractdump.getProdNo());
+            System.out.println("Details \\:\\:  " + contractdump.getOrganizationNumber() + " ProdNo \\:\\:  " + contractdump.getProdNo());
             sql.printStackTrace();
             System.exit(1);
         } 
@@ -1799,6 +1827,7 @@ public class DatabaseService {
     private Long insertSlabbasedEnteryValues(Long slabbasedId, Contractdump contractdump, Double maxVal) {
         try {
         	EntityManager entityManager= JPAUtil.getEntityManagerFactory().createEntityManager();
+        	entityManager.getTransaction().begin();
             Query q=entityManager.createNativeQuery(INSERT_SLABBASEDPRICEENTRIES_SQL);
             java.util.Date date = new java.util.Date();
             q.setParameter(1, slabbasedId);
@@ -1813,10 +1842,11 @@ public class DatabaseService {
             q.setParameter(5, false);
 
             int i = q.executeUpdate();
+            entityManager.getTransaction().commit();
             Integer id = (Integer) q.getSingleResult();
                 slabbasedId = id.longValue();
 
-
+                entityManager.close();
             //     slabbasedId = queryService.findMaxSlabbasedPriceId();
 
             return slabbasedId;
@@ -1854,6 +1884,7 @@ public class DatabaseService {
     private Long insertFirstSlabbasedEnteryValueForITEMS(Long slabbasedId, Contractdump contractdump) {
         try {
         	EntityManager entityManager= JPAUtil.getEntityManagerFactory().createEntityManager();
+        	entityManager.getTransaction().begin();
         	Query q = entityManager.createNativeQuery(INSERT_SLABBASEDPRICEENTRIES_SQL);
             java.util.Date date = new java.util.Date();
             q.setParameter(1, slabbasedId);
@@ -1869,10 +1900,11 @@ public class DatabaseService {
             q.setParameter(5, false);
 
             int i = q.executeUpdate();
+            entityManager.getTransaction().commit();
             Integer id = (Integer) q.getSingleResult();
             slabbasedId = id.longValue();
             //     slabbasedId = queryService.findMaxSlabbasedPriceId();
-
+            entityManager.close();
             return slabbasedId;
         } catch (NullPointerException nf) {
             nf.printStackTrace();
@@ -1888,6 +1920,7 @@ public class DatabaseService {
     private Long insertSlabbasedEnteryValuesForITEMS(Long slabbasedId, Contractdump contractdump, Double maxVal) {
         try {
         	EntityManager entityManager= JPAUtil.getEntityManagerFactory().createEntityManager();
+        	entityManager.getTransaction().begin();
             Query q= entityManager.createNativeQuery(INSERT_SLABBASEDPRICEENTRIES_SQL);
             java.util.Date date = new java.util.Date();
             q.setParameter(1, slabbasedId);
@@ -1902,10 +1935,11 @@ public class DatabaseService {
             q.setParameter(5, false);
 
             int i = q.executeUpdate();
+            entityManager.getTransaction().commit();
             Integer id = (Integer) q.getSingleResult();
             slabbasedId = id.longValue();
             //     slabbasedId = queryService.findMaxSlabbasedPriceId();
-
+            entityManager.close();
             return slabbasedId;
        
         } catch (Exception e) {
@@ -2119,6 +2153,7 @@ public class DatabaseService {
 
         try {
         	EntityManager entityManager= JPAUtil.getEntityManagerFactory().createEntityManager();
+        	entityManager.getTransaction().begin();
             Query q= entityManager.createNativeQuery(INSERT_CONTRACTPRICE_SQL);
             Long longNull = null;
             q.setParameter(1, priceId);
@@ -2227,6 +2262,7 @@ public class DatabaseService {
             	q.setParameter(23, Types.INTEGER);
 
             int i = q.executeUpdate();
+            entityManager.getTransaction().commit();
             return;
         } catch (NullPointerException ne) {
             System.out.println("Error comes here in contractcomonent table " + contractComponent.getContractComponentId());
@@ -2245,6 +2281,7 @@ public class DatabaseService {
         Boolean status = false;
         try {
         	EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+        	entityManager.getTransaction().begin();
             Query q = entityManager.createNativeQuery(INSERT_CONTRACTPRICE_SQL);
             Long longNull = null;
             q.setParameter(1, priceId);
@@ -2277,6 +2314,8 @@ public class DatabaseService {
 
 
             int i = q.executeUpdate();
+            entityManager.getTransaction().commit();
+            entityManager.close();
             return true;
         } catch (NullPointerException ne) {
             ne.printStackTrace();
@@ -2471,6 +2510,7 @@ public class DatabaseService {
 
         try {
         	EntityManager entityManager= JPAUtil.getEntityManagerFactory().createEntityManager();
+        	entityManager.getTransaction().begin();
             Query q = entityManager.createNativeQuery(INSERT_CONTRACTPRICE_SQL);// Percentage based
             Long longNull = null;
             q.setParameter(1, priceId);
@@ -2564,6 +2604,8 @@ public class DatabaseService {
 
 
             int i = q.executeUpdate();
+            entityManager.getTransaction().commit();
+            entityManager.close();
             return;
         } catch (NullPointerException ne) {
             ne.printStackTrace();
@@ -2579,10 +2621,12 @@ public class DatabaseService {
     public void updateDeltaAggRemovePrice(Long id) {
         try {
         	EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
-        	
+        	entityManager.getTransaction().begin();
         	String query = "update core.deltacontractdump set price_id=null where price_id = " + id;
             Query q = entityManager.createNativeQuery(query);
             q.executeUpdate();
+            entityManager.getTransaction().commit();
+            entityManager.close();
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -2594,6 +2638,7 @@ public class DatabaseService {
 
         try {
         	EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+        	entityManager.getTransaction().begin();
         	Query q = entityManager.createNativeQuery(INSERT_CONTRACTPRICE_HISTORY_SQL);
             Long longNull = null;
             q.setParameter(1, contractPrice.getPriceId());
@@ -2667,6 +2712,8 @@ public class DatabaseService {
             	q.setParameter(23, Types.INTEGER);
 
             int i = q.executeUpdate();
+            entityManager.getTransaction().commit();
+            entityManager.close();
             return;
         } catch (NullPointerException ne) {
             ne.printStackTrace();
@@ -2684,6 +2731,7 @@ public class DatabaseService {
         try {
             Long slabbasedId = null;
             EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+            entityManager.getTransaction().begin();
         	Query q = entityManager.createNativeQuery(INSERT_SLABBASEDPRICE_SQL);
             java.util.Date date = new java.util.Date();
             q.setParameter(1, priceId);
@@ -2705,11 +2753,12 @@ public class DatabaseService {
 
 
             int i = q.executeUpdate();
+            entityManager.getTransaction().commit();
             Integer id = (Integer) q.getSingleResult();
             slabbasedId = id.longValue();
 
             //     slabbasedId = queryService.findMaxSlabbasedPriceId();
-
+            entityManager.close();
             return slabbasedId;
         }
          catch (Exception e) {
@@ -2723,6 +2772,7 @@ public class DatabaseService {
 
         try {
             EntityManager entityManager = JPAUtil.getEntityManagerFactory().createEntityManager();
+            
             entityManager.getTransaction().begin();
             System.out.println("Inside upsertContractData ");
             System.out.println("Begin transaction");
@@ -3124,10 +3174,13 @@ public class DatabaseService {
     public void updateContractPriceProcessingDetails(String priceId, Integer processingId) {
         try {
         	EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+        	entityManager.getTransaction().begin();
             Query q= entityManager.createNativeQuery(UPDATE_CONTRACTPRICE_SQL);
             q.setParameter(1, processingId);
             q.setParameter(2, new Long(priceId));
             int i = q.executeUpdate();
+            entityManager.getTransaction().commit();
+            entityManager.close();
             return;
 
         } catch (Exception e) {
@@ -3151,10 +3204,12 @@ public class DatabaseService {
             }
             //  for(Integer priceId : priceIds) {
             EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+            entityManager.getTransaction().begin();
             String query = "update core.contractprice set priority= " + priority + " where price_id in (" + str + ")";
             Query q= entityManager.createNativeQuery(query);
             q.executeUpdate();
-
+            entityManager.getTransaction().commit();
+            entityManager.close();
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -3166,10 +3221,12 @@ public class DatabaseService {
     public void updateContractPriceJourneyType(Integer journey, Long priceId) {
         try {
         	EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
-            String query = "update core.contractprice set appl_journey_tp_cd = " + journey + " where price_id =" + priceId;
+        	entityManager.getTransaction().begin();
+        	String query = "update core.contractprice set appl_journey_tp_cd = " + journey + " where price_id =" + priceId;
             Query q= entityManager.createNativeQuery(query);
             q.executeUpdate();
-
+            entityManager.getTransaction().commit();
+            entityManager.close();
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(1);
@@ -3352,6 +3409,7 @@ public class DatabaseService {
     private void updateDate(ContractComponent contractComponent, String oldStartDate, String newStartDate) {
         try {
         	EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+        	entityManager.getTransaction().begin();
             Query q= entityManager.createNativeQuery("update core.contractcomponent set start_Dt ='" + newStartDate + "' where start_dt = '" + oldStartDate + "'  and   contractcomponent_id =" + contractComponent.getContractComponentId());
 //            PreparedStatement stmt = connection.prepareStatement(UPDATE_CONTRACTPRICE_SQL, Statement.RETURN_GENERATED_KEYS);
 //            stmt.setInt(1,processingId);
@@ -3359,6 +3417,8 @@ public class DatabaseService {
 //            int i = stmt.executeUpdate();
 //            connection.close();
             int i = q.executeUpdate();
+            entityManager.getTransaction().commit();
+            entityManager.close();
         } catch (HibernateQueryException sqex) {
             System.out.println("######Error while upserting data in Contractdump table.");
             sqex.printStackTrace();
@@ -3553,10 +3613,13 @@ public class DatabaseService {
     public void updateItemInPriceTable(Integer priceId, Integer contractPriceItemId) {
         try {
         	EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+        	entityManager.getTransaction().begin();
             Query q= entityManager.createNativeQuery("update core.price set item_id=? where price_id = ?");
             q.setParameter(1, contractPriceItemId);
             q.setParameter(2, priceId);
             q.executeUpdate();
+            entityManager.getTransaction().commit();
+            entityManager.close();
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -3643,9 +3706,12 @@ public class DatabaseService {
 
             }
             EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+            entityManager.getTransaction().begin();
             String query = "update core.contractprice set appl_journey_tp_cd=3 where price_id in (" + str + ")";
             Query q=entityManager.createNativeQuery(query);
             q.executeUpdate();
+            entityManager.getTransaction().commit();
+            entityManager.close();
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -3668,10 +3734,12 @@ public class DatabaseService {
             }
             //  for(Integer priceId : priceIds) {
             EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+            entityManager.getTransaction().begin();
             String query = "delete from core.price where price_id in (" + str + ")";
             Query q= entityManager.createNativeQuery(query);
             q.executeUpdate();
-
+            entityManager.getTransaction().commit();
+            entityManager.close();
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(1);
@@ -3687,10 +3755,12 @@ public class DatabaseService {
 
             //  for(Integer priceId : priceIds) {
             EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+            entityManager.getTransaction().begin();
             String query = "delete from core.price where price_id =" + str;
             Query q=entityManager.createNativeQuery(query);
             q.executeUpdate();
-
+            entityManager.getTransaction().commit();
+            entityManager.close();
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(1);
@@ -3713,10 +3783,13 @@ public class DatabaseService {
             }
             //  for(Integer priceId : priceIds) {
             EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+            entityManager.getTransaction().begin();
             String query = "delete from core.price where price_id in (" + str + ")";
             Query q=entityManager.createNativeQuery(query);
             
             q.executeUpdate();
+            entityManager.getTransaction().commit();
+            entityManager.close();
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -4191,10 +4264,12 @@ public class DatabaseService {
         try {
             String remark = "" + contractdump.getId();
             EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+            entityManager.getTransaction().begin();
             String query = "update core.deltacontractdump set remark=" + remark + " where customer_number = '" + deltacontractdump.getCustomerNumber() + "' and  prodno = " + deltacontractdump.getProdNo();
             Query q=entityManager.createNativeQuery(query);
             q.executeUpdate();
-
+            entityManager.getTransaction().commit();
+            entityManager.close();
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(1);

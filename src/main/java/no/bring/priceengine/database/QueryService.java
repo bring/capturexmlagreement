@@ -3526,7 +3526,7 @@ public class QueryService {
         	EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
             
         	
-            Statement stmt = con.createStatement();
+           // Statement stmt = con.createStatement();
 
             List<Query> query=entityManager.createNativeQuery(sql_final).getResultList();
             
@@ -8614,5 +8614,8 @@ public class QueryService {
         }
 
     }
+    
+
+    
 
 }
