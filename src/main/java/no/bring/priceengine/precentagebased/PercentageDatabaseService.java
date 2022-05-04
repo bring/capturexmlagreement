@@ -24,6 +24,18 @@ public class PercentageDatabaseService {
             if(!dumps.isEmpty()){
                 for(Percentagebaseddump percentagebaseddump :  dumps) {
                     percentagebaseddump.setRemark(7);
+                    if(percentagebaseddump.getFromLocation().equalsIgnoreCase("NULL") || percentagebaseddump.getFromLocation().isEmpty()) {
+                    	percentagebaseddump.setFromLocation(null);
+                    }
+                    if(percentagebaseddump.getToLocation().equalsIgnoreCase("NULL") || percentagebaseddump.getToLocation().isEmpty()) {
+                    	percentagebaseddump.setToLocation(null);
+                    }
+                    if(percentagebaseddump.getRouteType().equalsIgnoreCase("NULL") || percentagebaseddump.getRouteType().isEmpty()) {
+                    	percentagebaseddump.setRouteType(null);
+                    } 
+                    if(percentagebaseddump.getZoneType().equalsIgnoreCase("NULL") || percentagebaseddump.getZoneType().isEmpty()) {
+                    	percentagebaseddump.setZoneType(null);
+                    } 
                     entityManager.persist(percentagebaseddump);
                 }
             }

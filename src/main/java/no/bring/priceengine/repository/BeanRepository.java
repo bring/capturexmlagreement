@@ -4,12 +4,11 @@ import no.bring.priceengine.dao.*;
 import no.bring.priceengine.database.DatabaseService;
 import no.bring.priceengine.database.JPAUtil;
 import no.bring.priceengine.util.PriceEngineConstants;
-import org.codehaus.jettison.json.JSONObject;
 import org.hibernate.HibernateException;
+import org.json.JSONObject;
 import org.springframework.dao.DataAccessException;
 
 import javax.persistence.EntityManager;
-import javax.persistence.Query;
 import javax.persistence.TypedQuery;
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.CriteriaQuery;
@@ -24,7 +23,7 @@ public class BeanRepository {
 
     //private String INSERT_CUSTOMPRODUCTATTRIBUTE_QUERY = "INSERT INTO core.customproductattribute(item_id, contractcomponent_id, custom_attributes, start_dt, customproductattribute_st_tp_cd, applicabilitycriteria_id, source_reference,appl_journey_tp_cd)  VALUES ( ?, ?, ?, ?, ?, ?, ?, ?)";
     private String INSERT_CUSTOMPRODUCTATTRIBUTE_QUERY = "INSERT INTO core.customproductattribute(item_id, contractcomponent_id, start_dt, customproductattribute_st_tp_cd, applicabilitycriteria_id, source_reference,appl_journey_tp_cd)  VALUES ( ?, ?, ?, ?, ?, ?, ?)";
-
+    
     public static CustomProductAttribute buildCustomProductAttribute(Customervolfactordump customervolfactordump, ContractComponent contractComponent, Service service)
     throws Exception {
         CustomProductAttribute customProductAttribute = new CustomProductAttribute();
@@ -62,34 +61,36 @@ public class BeanRepository {
     public void insertCustomerProdAttribute(CustomProductAttribute customProductAttribute){
 
         EntityManager entityManager = JPAUtil.getEntityManagerFactory().createEntityManager();
-        entityManager.getTransaction().begin();
         try {
 
             SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:dd");
             String date = "2022-01-01 00:00:00";
-            Query q= entityManager.createNativeQuery(INSERT_CUSTOMPRODUCTATTRIBUTE_QUERY);
+            Class.forName(PriceEngineConstants.DB_CONNECTION_DRIVER);
+            Connection connection = DriverManager.getConnection(PriceEngineConstants.DB_CONNECTION_URL, PriceEngineConstants.DB_CONNECTION_USERNAME, PriceEngineConstants.DB_CONNECTION_PASSWORD);
+            PreparedStatement stmt = connection.prepareStatement(INSERT_CUSTOMPRODUCTATTRIBUTE_QUERY, Statement.RETURN_GENERATED_KEYS);
 
-            q.setParameter(1, customProductAttribute.getItemId().intValue());
-            q.setParameter(2, customProductAttribute.getContractComponent().getContractComponentId().intValue());
+            stmt.setInt(1, customProductAttribute.getItemId().intValue());
+            stmt.setInt(2, customProductAttribute.getContractComponent().getContractComponentId().intValue());
             //stmt.setNString(3, getCustomAttributes().toString());
 
-            q.setParameter(3, new java.sql.Date(df.parse(date).getTime()));
-            q.setParameter(4,1);
+            stmt.setDate(3, new java.sql.Date(df.parse(date).getTime()));
+            stmt.setInt(4,1);
             if(null!=customProductAttribute.applicabilityCriteriaEntity)
-            	q.setParameter(5,customProductAttribute.applicabilityCriteriaEntity.getApplicabilityCriteriaId());
+                stmt.setLong(5,customProductAttribute.applicabilityCriteriaEntity.getApplicabilityCriteriaId());
             else
-            	q.setParameter(5,Types.INTEGER);
-            q.setParameter(6, Types.VARCHAR);
+                stmt.setNull(5,Types.INTEGER);
+            stmt.setNull(6, Types.VARCHAR);
             if(null!=customProductAttribute.getApplJourneyTpCd())
-            	q.setParameter(7, customProductAttribute.getApplJourneyTpCd());
+                stmt.setInt(7, customProductAttribute.getApplJourneyTpCd());
             else
-            	q.setParameter(7,Types.INTEGER);
-            int i = q.executeUpdate();
-            entityManager.getTransaction().commit();
-            Integer id = (Integer) q.getSingleResult();
-            Long customProductAttributeId = id.longValue();
-               System.out.println("CustomerProductAttribute has been created ID- "+ customProductAttributeId);
-               entityManager.close();
+                stmt.setNull(7,Types.INTEGER);
+            int i = stmt.executeUpdate();
+            ResultSet rs = stmt.getGeneratedKeys();
+            if (rs.next()) {
+                 System.out.println("CustomerProductAttribute has been created ID- "+ rs.getLong(1));
+            }
+
+            connection.close();
 
             System.out.println("New CustomProductAttribute has been created");
 
