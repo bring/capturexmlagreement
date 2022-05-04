@@ -8608,5 +8608,263 @@ public class QueryService {
 
     }
     
+    public void updateEndDateOfContractComponent(Long contractcomponentId, LocalDate endDate) {
+      	try {
+      			EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+      			entityManager.getTransaction().begin();
+      			LocalDate newEndDate=endDate;
+      			Query q=entityManager.createNativeQuery("UPDATE CORE.CONTRACTCOMPONENT SET end_dt=? where contractcomponent_id=?");
+      			q.setParameter(1, java.sql.Date.valueOf(endDate));
+      			q.setParameter(2, contractcomponentId);
+      			q.executeUpdate();
+      			entityManager.getTransaction().commit();
+      			entityManager.close();
+      	}catch(Exception e) {
+      		e.printStackTrace();
+      		System.exit(1);
+      	}
+      	
+      }
+      
+      public void updateEndDateOfContractRole(LocalDate endDate,Long contractComponentId) {
+      	try {
+      			EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+      			entityManager.getTransaction().begin();
+      			Query q=entityManager.createNativeQuery("Update core.contractrole set end_dt=? where contractcomponent_id=?");
+      			q.setParameter(1,java.sql.Date.valueOf(endDate));
+      			q.setParameter(2,contractComponentId);
+      			q.executeUpdate();
+      			entityManager.getTransaction().commit();
+      			entityManager.close();
+      			updateEndDateOfContractComponent(contractComponentId,endDate);
+      	}catch(Exception e) {
+      		e.printStackTrace();
+      		System.exit(1);
+      	}
+      }
+      
+      
+      public void updateStartDateOfContractRole(LocalDate startDt,Long contractComponentId) {
+    	  	try {
+    	  			EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+    	  			entityManager.getTransaction().begin();
+    	  			Query q=entityManager.createNativeQuery("Update core.contractrole set start_dt=? where contractcomponent_id=?");
+    	  			q.setParameter(1,java.sql.Date.valueOf(startDt));
+    	  			q.setParameter(2,contractComponentId);
+    	  			q.executeUpdate();
+    	  			entityManager.getTransaction().commit();
+    	  			entityManager.close();
+    	  			updateEndDateOfContractComponent(contractComponentId,startDt);
+    	  	}catch(Exception e) {
+    	  		e.printStackTrace();
+    	  		System.exit(1);
+    	  	}
+    	  }
+      
+      public void updateStartDtOfContractComponent(Long contractcomponentId, LocalDate startDate) {
+    	  	try {
+    	  			EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+    	  			entityManager.getTransaction().begin();
+    	  			LocalDate newEndDate=startDate;
+    	  			Query q=entityManager.createNativeQuery("UPDATE CORE.CONTRACTCOMPONENT SET start_dt=? where contractcomponent_id=?");
+    	  			q.setParameter(1, java.sql.Date.valueOf(startDate));
+    	  			q.setParameter(2, contractcomponentId);
+    	  			q.executeUpdate();
+    	  			entityManager.getTransaction().commit();
+    	  			entityManager.close();
+    	  	}catch(Exception e) {
+    	  		e.printStackTrace();
+    	  		System.exit(1);
+    	  	}
+    	  	
+    	  }
+      
+      
+      public void updateCurerncyOfContractRole(Long contractcomponentId,String curr) {
+    	  try {
+    			EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+    			entityManager.getTransaction().begin();
+    			Query q=entityManager.createNativeQuery("Update core.contractrole set agreement_currency=? where contractcomponent_id=?");
+    			q.setParameter(1,curr);
+    			q.setParameter(2,contractcomponentId);
+    			q.executeUpdate();
+    			entityManager.getTransaction().commit();
+    			entityManager.close();
+    	}catch(Exception e) {
+    		e.printStackTrace();
+    		System.exit(1);
+    	}
+      }
+      public List<Deltacontractdump> findAllDeltaContractdumps() {
+
+          List<Deltacontractdump> deltacontractdumps = new ArrayList<>();
+
+          String whereClause = " WHERE updated=true and enabled = true";
+
+          String sql_final = SELECT_DELTACONTRACTDUMP + whereClause;
+
+          try {
+
+              if (con == null || con.isClosed()) {
+
+                  con = DriverManager.getConnection(PriceEngineConstants.DB_CONNECTION_URL, PriceEngineConstants.DB_CONNECTION_USERNAME, PriceEngineConstants.DB_CONNECTION_PASSWORD);
+
+              }
+
+              Statement stmt = con.createStatement();
+
+              ResultSet resultSet = stmt.executeQuery(sql_final);
+
+              while (resultSet.next()) {
+
+                  Deltacontractdump deltacontractdump = new Deltacontractdump();
+
+                  Integer dsclimcd = resultSet.getString("dsclimcd") != null && resultSet.getString("dsclimcd").equalsIgnoreCase("null") ? null : Integer.parseInt(resultSet.getString("dsclimcd"));
+
+                  Double disclmtFrom = resultSet.getDouble("disclmtfrom") == -1 ? null : resultSet.getDouble("disclmtfrom");
+
+                  deltacontractdump.setOrganizationNumber(resultSet.getString("organization_number"));
+
+                  deltacontractdump.setOrganizationName(resultSet.getString("organization_name"));
+
+                  deltacontractdump.setCustomerNumber(resultSet.getString("customer_number"));
+
+                  deltacontractdump.setCustomerName(resultSet.getString("customer_name"));
+
+                  deltacontractdump.setDiv(9999);
+
+                  deltacontractdump.setArtikelgrupp(9999);
+
+                  deltacontractdump.setStatGrupp("9999");
+
+                  deltacontractdump.setProdNo(resultSet.getInt("prodno"));
+
+                  deltacontractdump.setProdDescr(resultSet.getString("proddescription"));
+
+                  deltacontractdump.setRouteFrom(resultSet.getString("routefrom"));
+
+                  deltacontractdump.setRouteTo(resultSet.getString("routeto"));
+
+                  deltacontractdump.setFromDate(resultSet.getDate("startdate"));
+
+                  deltacontractdump.setToDate(resultSet.getDate("todate"));
+
+                  deltacontractdump.setCreateddate(resultSet.getDate("createddate"));
+
+                  deltacontractdump.setBasePrice(resultSet.getDouble("baseprice"));
+
+                  deltacontractdump.setCurr(resultSet.getString("currency"));
+
+                  deltacontractdump.setPrUM(resultSet.getString("prum"));
+
+                  deltacontractdump.setDscLimCd(dsclimcd);
+
+                  deltacontractdump.setDiscLmtFrom(disclmtFrom);
+
+                  deltacontractdump.setPrice(resultSet.getDouble("price"));
+
+                  deltacontractdump.setADsc(resultSet.getInt("adsc"));
+
+                  deltacontractdump.setKgTill(resultSet.getString("kgtill"));
+
+                  deltacontractdump.setUpdated(resultSet.getBoolean("updated"));
+
+                  deltacontractdump.setFileCountry(resultSet.getString("filecountry"));
+
+                  deltacontractdump.setEnabled(resultSet.getBoolean("enabled"));
+
+                  deltacontractdump.setRouteType(resultSet.getString("routetype"));
+
+                  deltacontractdump.setZoneType(resultSet.getString("zone_type"));
+
+                  deltacontractdump.setRemark(resultSet.getString("remark"));
+
+                  deltacontractdump.setCreateddate(resultSet.getDate("createdate"));
+
+                  deltacontractdump.setPriceId(resultSet.getInt("price_id"));
+
+                  deltacontractdumps.add(deltacontractdump);
+
+              }
+
+
+              return deltacontractdumps;
+
+          } catch (Exception ex) {
+
+              System.out.println("Error[" + ex.getMessage() + "] while fetching records ");
+
+              return Collections.emptyList();
+
+          }
+
+      }
+      
+      @org.springframework.data.jpa.repository.Query
+
+      public List<Percentagebaseddeltadump> findAllPercentageBasedDeltaContractdumps() throws DataAccessException {
+
+          System.out.println("Inside findAllPercentageBasedContractdumps() ");
+
+          EntityManager em = JPAUtil.getEntityManagerFactory().createEntityManager();
+
+          try {
+
+              CriteriaBuilder builder = em.getCriteriaBuilder();
+
+              CriteriaQuery<Percentagebaseddeltadump> query = builder.createQuery(Percentagebaseddeltadump.class);
+
+              Root<Percentagebaseddeltadump> root = query.from(Percentagebaseddeltadump.class);
+
+              query.select(root);
+
+              Predicate namePredicate = builder.equal(root.get("updated"), true);
+
+
+              Predicate enablePredicate = builder.equal(root.get("enabled"), true);
+
+
+
+
+
+
+              Predicate predicates = builder.and(namePredicate, enablePredicate);
+
+              query.where(predicates);
+
+              TypedQuery<Percentagebaseddeltadump> typedQuery = em.createQuery(query);
+
+              if (typedQuery.getResultStream().findAny().isPresent())
+
+                  return typedQuery.getResultList();
+
+              else
+
+                  return Collections.emptyList();
+
+          } catch (HibernateException he) {
+
+              he.printStackTrace();
+
+              return null;
+
+          } catch (Exception e) {
+
+              e.printStackTrace();
+
+              System.exit(1);
+
+              return null;
+
+          } finally {
+
+              em.clear();
+
+              em.close();
+
+          }
+
+      }
+    
 
 }

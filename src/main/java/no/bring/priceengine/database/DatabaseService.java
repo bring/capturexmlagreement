@@ -217,10 +217,11 @@ public class DatabaseService {
 
         DatabaseService databaseService = new DatabaseService();
         // QueryService queryService = new QueryService();
-        //   databaseService.cleanUp();
+           databaseService.cleanUp();
         //databaseService.cleanUpPERCENT();
 //     databaseService.cleanUpSLABBASED();
-        databaseService.cleanUpInFixedANDSlabbased();
+//        databaseService.cleanUpInFixedANDSlabbased();
+//        databaseService.updateContractRoleAndComponentPercent();
         //databaseService.fixContractroles();
       //  databaseService.mergeSimilarJourneyType();
      // databaseService.insertPriority();
@@ -4713,6 +4714,164 @@ public class DatabaseService {
             deletePrice(oldPirce);
         }
     }
+    
+    
+    public void updateContractRoleAndComponentFixed() {
+
+    	List<Deltacontractdump> contractdumplist=queryService.findAllDeltaContractdumps();
+    	Set<String> set=filterCustomerByParent(contractdumplist);
+
+
+    	for(String key: set) {
+    		String[] arr=key.split("~");
+    		ContractRole cr=queryService.findCustomerInContractRole(arr[0]);
+    		LocalDate crStartDt=cr.getStartDt();
+    		LocalDate crEndDt=cr.getEndDt();
+
+    		String [] t=arr[1].split(" ");
+    		LocalDate newDeltaStartDt=LocalDate.parse(t[0]);
+
+    		String [] t2=arr[2].split(" ");
+    		LocalDate newDeltaEndDt=LocalDate.parse(t2[0]);
+    		LocalDate newStartDt=null;
+    		LocalDate newEndDt=null;
+    		String curr=arr[3];
+
+    		if(crStartDt.isAfter(newDeltaStartDt)){
+    			newStartDt=newDeltaStartDt;
+    			if(newStartDt!=null) {    					
+    				queryService.updateStartDateOfContractRole(newStartDt, cr.getContractComponent().getContractComponentId());
+    			}
+    		}
+    		if(crEndDt.isBefore(newDeltaEndDt)) {
+    			newEndDt=newDeltaEndDt;
+    			if(newEndDt!=null) {
+    				queryService.updateEndDateOfContractRole(newEndDt,cr.getContractComponent().getContractComponentId());
+    			}
+    		}
+
+    		if(!cr.getAgreementCurrency().equals(curr)) {
+    			queryService.updateCurerncyOfContractRole(cr.getContractComponent().getContractComponentId(), curr);
+    		}
+
+    	}
+    }
+
+
+    private Set<String> filterCustomerByParent(List<Deltacontractdump> contractdump){
+    	HashMap<String,List<Deltacontractdump>> map=new HashMap<String,List<Deltacontractdump>>();
+    	for(Deltacontractdump cd:contractdump) {
+    		String org=cd.getOrganizationNumber();
+
+    		if(map.containsKey(org)) {
+    			map.get(org).add(cd);
+    		}else {
+    			List<Deltacontractdump> list=new ArrayList<Deltacontractdump>();
+    			list.add(cd);
+    			map.put(org, list);
+    		}
+    	}
+    	Set<String> set=new HashSet<String>();
+
+    	for(String k:map.keySet()) {
+    		List<Deltacontractdump> sortedBasedONSTARTDATE=map.get(k);
+    		Collections.sort(sortedBasedONSTARTDATE, new Comparator<Deltacontractdump>() {
+    			@Override
+    			public int compare(Deltacontractdump u1, Deltacontractdump u2) {
+    				return u1.getFromDate().compareTo(u2.getFromDate());
+    			}
+    		});
+    		List<Deltacontractdump> sortedBasedonEndDate=map.get(k);
+    		Collections.sort(sortedBasedONSTARTDATE, new Comparator<Deltacontractdump>() {
+    			@Override
+    			public int compare(Deltacontractdump u1, Deltacontractdump u2) {
+    				return u2.getToDate().compareTo(u1.getToDate());
+    			}
+    		});
+    		String key=k+"~"+sortedBasedONSTARTDATE.get(0).getFromDate()+"~"+sortedBasedonEndDate.get(0).getToDate()+"~"+sortedBasedONSTARTDATE.get(0).getCurr()+"~";
+    		set.add(key);
+    	}
+    	return set;
+
+    }
+
+    public void updateContractRoleAndComponentPercent() {
+
+    	List<Percentagebaseddeltadump> contractdumplist=queryService.findAllPercentageBasedDeltaContractdumps();
+    	Set<String> set=filterCustomerByParentPercent(contractdumplist);
+
+
+    	for(String key: set) {
+    		String[] arr=key.split("~");
+    		ContractRole cr=queryService.findCustomerInContractRole(arr[0]);
+    		LocalDate crStartDt=cr.getStartDt();
+    		LocalDate crEndDt=cr.getEndDt();
+
+    		String [] t=arr[1].split(" ");
+    		LocalDate newDeltaStartDt=LocalDate.parse(t[0]);
+
+    		String [] t2=arr[2].split(" ");
+    		LocalDate newDeltaEndDt=LocalDate.parse(t2[0]);
+    		LocalDate newStartDt=null;
+    		LocalDate newEndDt=null;
+
+    		if(crStartDt.isAfter(newDeltaStartDt)){
+    			newStartDt=newDeltaStartDt;
+    			if(newStartDt!=null) {    					
+    				queryService.updateStartDateOfContractRole(newStartDt, cr.getContractComponent().getContractComponentId());
+    			}
+    		}
+    		if(crEndDt.isBefore(newDeltaEndDt)) {
+    			newEndDt=newDeltaEndDt;
+    			if(newEndDt!=null) {
+    				queryService.updateEndDateOfContractRole(newEndDt,cr.getContractComponent().getContractComponentId());
+    			}
+    		}
+
+
+
+    	}
+    }
+
+
+    private Set<String> filterCustomerByParentPercent(List<Percentagebaseddeltadump> contractdump){
+    	HashMap<String,List<Percentagebaseddeltadump>> map=new HashMap<String,List<Percentagebaseddeltadump>>();
+    	for(Percentagebaseddeltadump cd:contractdump) {
+    		String org=cd.getParentCustomerNumber();
+
+    		if(map.containsKey(org)) {
+    			map.get(org).add(cd);
+    		}else {
+    			List<Percentagebaseddeltadump> list=new ArrayList<Percentagebaseddeltadump>();
+    			list.add(cd);
+    			map.put(org, list);
+    		}
+    	}
+    	Set<String> set=new HashSet<String>();
+
+    	for(String k:map.keySet()) {
+    		List<Percentagebaseddeltadump> sortedBasedONSTARTDATE=map.get(k);
+    		Collections.sort(sortedBasedONSTARTDATE, new Comparator<Percentagebaseddeltadump>() {
+    			@Override
+    			public int compare(Percentagebaseddeltadump u1, Percentagebaseddeltadump u2) {
+    				return u1.getStartdate().compareTo(u2.getStartdate());
+    			}
+    		});
+    		List<Percentagebaseddeltadump> sortedBasedonEndDate=map.get(k);
+    		Collections.sort(sortedBasedONSTARTDATE, new Comparator<Percentagebaseddeltadump>() {
+    			@Override
+    			public int compare(Percentagebaseddeltadump u1, Percentagebaseddeltadump u2) {
+    				return u2.getEnddate().compareTo(u1.getEnddate());
+    			}
+    		});
+    		String key=k+"~"+sortedBasedONSTARTDATE.get(0).getStartdate()+"~"+sortedBasedonEndDate.get(0).getEnddate();
+    		set.add(key);
+    	}
+    	return set;
+
+    }
+
+    
   
 	
 
