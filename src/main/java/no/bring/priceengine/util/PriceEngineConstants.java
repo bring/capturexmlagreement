@@ -1,15 +1,24 @@
 package no.bring.priceengine.util;
 
 import java.math.BigDecimal;
+import java.util.Map;
+
+import no.bring.priceengine.database.JPAUtil;
 
 public final class PriceEngineConstants {
 
 	// UAT
-//	public static final String DATABASE_CONNECTION_URL= "jdbc:postgresql://139.114.151.175:5432/priceengine_crossborder_prod_06APR2022?ApplicationName=PriceengineExcelToDatabase";
+//	public static final String DATABASE_CONNECTION_URL= "jdbc:postgresql://139.114.151.175:5432/CrossborderDump_Test1?ApplicationName=PriceengineExcelToDatabase";
 
 	// PRODUCTION
-	public static final String DATABASE_CONNECTION_URL= "jdbc:postgresql://139.114.164.201:5432/priceengine_crossborder_prod?ApplicationName=PriceengineExcelToDatabase";
+//	public static final String DATABASE_CONNECTION_URL= "jdbc:postgresql://139.114.164.201:5432/priceengine_crossborder_prod?ApplicationName=PriceengineExcelToDatabase";
 
+	public static final Map<String,Object> PROPERTIES_MAP=JPAUtil.getEntityManagerFactory().getProperties();
+    public static final String DB_CONNECTION_DRIVER = String.valueOf(PROPERTIES_MAP.get("hibernate.connection.driver_class"));
+    public static final String DB_CONNECTION_URL= String.valueOf(PROPERTIES_MAP.get("javax.persistence.jdbc.url"));
+    public static final String DB_CONNECTION_USERNAME="pe_admin";
+    public static final String DB_CONNECTION_PASSWORD="peadmin";
+	
 	public static final Integer CUSTOMPRICE_SPEC_TP_CD_CUSTOM_PRICE_DIRECT = new Integer("1");
 	public static final Integer CUSTOMPRICE_SPEC_TP_CD_CUSTOM_PRICE_MATRIX = new Integer("3");
 
