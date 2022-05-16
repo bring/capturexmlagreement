@@ -6,14 +6,12 @@ import no.bring.priceengine.dao.Surchargedump;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.springframework.cglib.core.Local;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.sql.SQLException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -565,6 +563,7 @@ public class ReadFile {
                     deltaModel.setFileCountry(country);
                     deltaModel.setEnabled(true);
                     deltaModel.setCreateddate(new Date());
+                    deltaModel.setRemark(null);
                     deltacontractdumps.add(deltaModel);
 
                 }
@@ -844,7 +843,7 @@ public class ReadFile {
                             case 20:
                                 if (currentCell.getCellType().equals(CellType.STRING) && currentCell.getStringCellValue() != "")
                                     deltaModel.setDiscLmtFrom(new Double(currentCell.getStringCellValue()));
-                                else if (currentCell.getCellType().equals(CellType.NUMERIC) && (Double) currentCell.getNumericCellValue() != null)
+                                else if (currentCell.getCellType().equals(CellType.NUMERIC))
                                     deltaModel.setDiscLmtFrom(currentCell.getNumericCellValue());
                                 else
                                     deltaModel.setDiscLmtFrom(Double.valueOf("-1"));
@@ -852,7 +851,7 @@ public class ReadFile {
                             case 21:
                                 if (currentCell.getCellType().equals(CellType.STRING) && currentCell.getStringCellValue() != "")
                                     deltaModel.setPrice(new Double(currentCell.getStringCellValue()));
-                                else if (currentCell.getCellType().equals(CellType.NUMERIC) && (Double) currentCell.getNumericCellValue() != null)
+                                else if (currentCell.getCellType().equals(CellType.NUMERIC))
                                     deltaModel.setPrice(currentCell.getNumericCellValue());
                                 else
                                     deltaModel.setPrice(null);

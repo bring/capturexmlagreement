@@ -83,7 +83,7 @@ public class DatabaseService {
             "branch, parent_customer_number, parent_customer_name, customer_number, customer_name, prodno, startdate, enddate, routetype, from_location, to_location, precentage_discount, updated, enabled, filecountry, zone_type, remark, price_id) " +
             "VALUES ";
     private final String INSERT_PRICE_SQL = "insert into core.price (base_price, created_dt, created_by_user, end_dt, item_id, last_update_tx_id, percent_based_price, percentage_attribute_tp_cd, price_calc_tp_cd, price_def_tp_cd, price_lower_bound,  price_per_attribute_tp_cd, price_per_attribute_val_adj, price_per, price_status_tp_cd,  price_alternative_item_id,price_tp_cd, price_upper_bound, start_dt,last_update_user, last_update_dt)  values ( ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-    private final String INSERT_PRICE_HISTORY_SQL = "insert into core.pricehistory (base_price, created_dt, created_by_user, end_dt, item_id, last_update_tx_id, percent_based_price, percentage_attribute_tp_cd, price_calc_tp_cd, price_def_tp_cd, price_lower_bound,  price_per_attribute_tp_cd, price_per_attribute_val_adj, price_per, price_status_tp_cd,  price_alternative_item_id,price_tp_cd, price_upper_bound, start_dt,last_update_user, last_update_dt, price_id)  values (?, ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+    private final String INSERT_PRICE_HISTORY_SQL = "insert into core.pricehistory (base_price, created_dt, created_by_user, end_dt, item_id, last_update_tx_id, percent_based_price, percentage_attribute_tp_cd, price_calc_tp_cd, price_def_tp_cd, price_lower_bound,  price_per_attribute_tp_cd, price_per_attribute_val_adj, price_per, price_status_tp_cd,  price_alternative_item_id,price_tp_cd, price_upper_bound, start_dt,last_update_user, price_id)  values (?, ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
     private final String INSERT_PRICE_SQL_MAX_PRICE_ID = "insert into core.price ( base_price, created_dt, created_by_user, end_dt, item_id, last_update_tx_id, percent_based_price, percentage_attribute_tp_cd, price_calc_tp_cd, price_def_tp_cd, price_lower_bound,  price_per_attribute_tp_cd, price_per_attribute_val_adj, price_per, price_status_tp_cd,  price_alternative_item_id,price_tp_cd, price_upper_bound, start_dt,last_update_user, last_update_dt, price_id)  values ( ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
     private final String INSERT_PERCENTAGEBASED_PRICE_SQL = "insert into core.price ( percent_based_price, created_dt, created_by_user, end_dt, item_id, last_update_tx_id, percentage_attribute_tp_cd, price_calc_tp_cd, price_def_tp_cd, price_lower_bound,  price_per_attribute_tp_cd, price_per_attribute_val_adj, price_per, price_status_tp_cd,  price_alternative_item_id,price_tp_cd, price_upper_bound, start_dt)  values ( ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
     private final String INSERT_SURCHARGE_PERCENTAGEBASED_PRICE_SQL = "insert into core.price (percent_based_price, created_dt, created_by_user, end_dt, item_id, last_update_tx_id, percentage_attribute_tp_cd, price_calc_tp_cd, price_def_tp_cd, price_lower_bound,  price_per_attribute_tp_cd, price_per_attribute_val_adj, price_per, price_status_tp_cd,  price_alternative_item_id,price_tp_cd, price_upper_bound, start_dt, price_id )  values ( ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
@@ -1520,8 +1520,8 @@ public class DatabaseService {
             q.setParameter(18, new Date());
             q.setParameter(19, java.sql.Date.valueOf(price.getStartDt()));
             q.setParameter(20, Types.VARCHAR);
-            q.setParameter(21, Types.DATE); // cehck what date is saving
-            q.setParameter(22, price.getPriceId());
+          //  q.setParameter(21, Types.DATE); // cehck what date is saving
+            q.setParameter(21, price.getPriceId());
             int i = q.executeUpdate();
             entityManager.getTransaction().commit();
             entityManager.close();

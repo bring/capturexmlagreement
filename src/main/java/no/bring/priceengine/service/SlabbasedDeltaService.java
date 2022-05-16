@@ -25,9 +25,10 @@ import java.util.stream.Collectors;
 public class SlabbasedDeltaService {
 
     private DeltaRecordValidation deltaRecordValidation = new DeltaRecordValidation();
-    private final String NEW_CUSTOMER = "New Customer";
+
     private final String NEW_PARENT_CUSTOMER = "New Parent Customer";
     private final String NEW_CHILD_CUSTOMER = "New Child Customer";
+    private final String NEW_CUSTOMER = "New Customer";
     private final String CUSTOMER_WITHOUT_DISCOUNT_LINE = "Customer without discount line";
     private final String CUSTOMER_IN_PARTY_NOT_IN_PE_CONTRACTS = "Customer in party but not in contract tables";
     private final String NEW_SERVICE = "New Service";
@@ -94,7 +95,8 @@ public class SlabbasedDeltaService {
             // change for discount line
             for (Deltacontractdump deltacontractdump : deltacontractdumps) {
                 Party childParty = queryService.findChildPartyBySSPK(deltacontractdump.getCustomerNumber());
-                if (null != childParty){
+                Party parentParty = queryService.findParentParty(deltacontractdump.getOrganizationNumber());
+                if (null != childParty && null!=parentParty){
                 ContractRole contractRole = queryService.findCustomerInContractRoleAllType(deltacontractdump.getOrganizationNumber());
                 ContractRole childContractRole = queryService.findCustomerInContractRoleAllType(deltacontractdump.getCustomerNumber());
                 if (null == contractRole || null == childContractRole) {
@@ -198,9 +200,12 @@ public class SlabbasedDeltaService {
                         databaseService.updateSingleDeltaContractDumpUsingJDBC(deltacontractdump, ITEM_ID_NOT_CONFIGURED, false, logger);
                     }
                 }
-            }else{
+            }else if(childParty==null && parentParty!=null)
+                    databaseService.updateDeltaContractDump(deltacontractdump, NEW_CHILD_CUSTOMER, true, logger);
+            else if(childParty!=null && parentParty==null)
+                    databaseService.updateDeltaContractDump(deltacontractdump, NEW_PARENT_CUSTOMER, true, logger);
+            else if(childParty==null && parentParty==null)
                     databaseService.updateDeltaContractDump(deltacontractdump, NEW_CUSTOMER, true, logger);
-                }
         }
     }
         // COMPARE AND UPDATE

@@ -3448,7 +3448,7 @@ public class QueryService {
         else  if(null!= organizationNumber && isChild)
             whereClause = " WHERE enabled = true and filecountry='" + fileCountry + "' and customer_number= "+ organizationNumber;
             else
-            whereClause = " WHERE updated=false and enabled = true and remark='null' and filecountry='" + fileCountry + "'";
+            whereClause = " WHERE updated=false and enabled = true and  ( remark='null' or remark is null) and filecountry='" + fileCountry + "'";
         String sql_final = SELECT_DELTACONTRACTDUMP + whereClause;
         try {
         	EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
