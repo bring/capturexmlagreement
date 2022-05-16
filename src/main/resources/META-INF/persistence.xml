@@ -14,15 +14,16 @@
 			<property name="javax.persistence.jdbc.driver" value="org.postgresql.Driver" />
 
 			<!--- PRODUCTION 139.114.164.201 -->
-			<property name="javax.persistence.jdbc.url" value="jdbc:postgresql://139.114.164.201:5432/priceengine_crossborder_prod?ApplicationName=PriceengineExcelToDatabase" />
-			<property name="javax.persistence.jdbc.user" value="postgres"/>
-			<property name="javax.persistence.jdbc.password" value="pr1ceeng1ne"/>
-			<property name="hibernate.connection.autocommit" value="true" />
+<!--			<property name="javax.persistence.jdbc.url" value="jdbc:postgresql://139.114.164.201:5432/priceengine_crossborder_prod?ApplicationName=PriceengineExcelToDatabase" />-->
+<!--			<property name="javax.persistence.jdbc.user" value="postgres"/>-->
+<!--			<property name="javax.persistence.jdbc.password" value="pr1ceeng1ne"/>-->
+<!--			<property name="hibernate.connection.autocommit" value="true" />-->
+
 			<!-- UAT -->
-<!--			<property name="javax.persistence.jdbc.url"-->
-<!--				value="jdbc:postgresql://139.114.151.175:5432/priceengine_crossborder_prod_06APR2022?ApplicationName=PriceengineExcelToDatabase" />-->
-<!--			<property name="javax.persistence.jdbc.user" value="postgres" />-->
-<!--			<property name="javax.persistence.jdbc.password" value="priceengine" />-->
+			<property name="javax.persistence.jdbc.url"
+				value="jdbc:postgresql://139.114.151.175:5432/CrossborderDump_Test1?ApplicationName=PriceengineExcelToDatabase" />
+			<property name="javax.persistence.jdbc.user" value="postgres" />
+			<property name="javax.persistence.jdbc.password" value="priceengine" />
 
 			<property name="hibernate.postgres" value="true" />
 			<property name="hibernate.hbm2ddl.auto" value="create-drop" />

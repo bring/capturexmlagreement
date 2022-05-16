@@ -16,7 +16,6 @@ import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.*;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.Date;
 import java.util.concurrent.ConcurrentHashMap;
@@ -28,7 +27,7 @@ import java.util.stream.Collectors;
 public class DatabaseService {
     public static final String AUTOMATION_USER = "Automation";
     private final String UPDATE_DELTACONTRACTDUMP = "UPDATE core.deltacontractdump ";
-    
+//    public static final String DB_CONNECTION_DRIVER = "org.postgresql.Driver";
     public static final String UPDATE_CONTRACTPRICE_SQL = "UPDATE core.contractprice SET contractprice_processing_tp_cd=? WHERE price_id=?";
     public static final String UPDATE_CONTRACTPRICE_PRIORITY_SQL = "UPDATE core.contractprice SET priority=? WHERE price_id=?";
     private static final Integer SIGNER_ROLE_TP_CD = new Integer(1);
@@ -67,7 +66,7 @@ public class DatabaseService {
     private static final String FROM_ZONE_NULL_TO_ZONE_NOT_NULL = "FROM_ZONE_NULL_TO_ZONE_NOT_NULL";
     private static final String FROM_ZONE_NOT_NULL_TO_ZONE_NULL = "FROM_ZONE_NOT_NULL_TO_ZONE_NULL";
     private static final String ONLY_FROM_TO_COUNTRY = "ONLY_FROM_TO_COUNTRY";
-    static Connection con;
+//    static Connection con;
     final String INSERT_PERCENTAGE_CONTRACTPRICE_SQL = "  INSERT INTO core.contractprice"
             + " ( price_id, sequence, contractprice_application_tp_cd, contractprice_adjustment_tp_cd, priority, contractcomponent_id, formula"
             + ", source_reference, contractprice_st_tp_cd, item_id_dup, applicabilitycriteria_id"
@@ -217,10 +216,10 @@ public class DatabaseService {
 
         DatabaseService databaseService = new DatabaseService();
         // QueryService queryService = new QueryService();
-        //   databaseService.cleanUp();
+           databaseService.cleanUp();
         //databaseService.cleanUpPERCENT();
 //     databaseService.cleanUpSLABBASED();
-        databaseService.cleanUpInFixedANDSlabbased();
+ //       databaseService.cleanUpInFixedANDSlabbased();
         //databaseService.fixContractroles();
       //  databaseService.mergeSimilarJourneyType();
      // databaseService.insertPriority();
@@ -257,21 +256,8 @@ public class DatabaseService {
             System.out.println("Begin transaction");
             if (!contracts.isEmpty()) {
                 for (Contractdump contractdump : contracts) {
-                    if (contractdump.getOrganizationNumber() != null) {
-                    	if(contractdump.getRouteFrom().equalsIgnoreCase("NULL") || contractdump.getRouteFrom().isEmpty()) {
-                    		contractdump.setRouteFrom(null);
-                    	}
-                    	if(contractdump.getRouteTo().equalsIgnoreCase("NULL") || contractdump.getRouteTo().isEmpty()) {
-                    		contractdump.setRouteTo(null);
-                    	}
-                    	if(contractdump.getRouteType().equalsIgnoreCase("NULL") || contractdump.getRouteType().isEmpty()) {
-                    		contractdump.setRouteType(null);
-                    	}
-                    	if(contractdump.getZoneType().equalsIgnoreCase("NULL") || contractdump.getZoneType().isEmpty()) {
-                    		contractdump.setZoneType(null);
-                    	}
+                    if (contractdump.getOrganizationNumber() != null)
                         entityManager.persist(contractdump);
-                    }
                 }
             }
             entityManager.getTransaction().commit();
@@ -311,15 +297,12 @@ public class DatabaseService {
 
     public int insertDeltaContractDumpUsingJDBC(Deltacontractdump deltacontractdump, Logger logger) {
         try {
-            if (con == null || con.isClosed()) {
-          //      con = DriverManager.getConnection("jdbc:postgresql://139.114.151.175:5432/priceengine_crossborder_prod_06APR2022?ApplicationName=PriceengineExcelToDatabase", "postgres", "priceengine");
-              con = DriverManager.getConnection(PriceEngineConstants.DB_CONNECTION_URL, PriceEngineConstants.DB_CONNECTION_USERNAME, PriceEngineConstants.DB_CONNECTION_PASSWORD);
-            }
-            Statement stmt = con.createStatement();
+            
+            EntityManager entityManager = JPAUtil.getEntityManagerFactory().createEntityManager();
+//            Statement stmt = con.createStatement();
             String discLmtFrom = deltacontractdump.getDiscLmtFrom() == null ? String.valueOf(-1) : String.valueOf(deltacontractdump.getDiscLmtFrom());
             String fromRoute = isEmpty(deltacontractdump.getRouteFrom()) ? "NULL" : deltacontractdump.getRouteFrom();
             String toRoute = isEmpty(deltacontractdump.getRouteTo()) ? "NULL" : deltacontractdump.getRouteTo();
-
             String endDateStr = null;
             if(null!=deltacontractdump.getToDate())
                 endDateStr = getDateAsString(deltacontractdump.getToDate());
@@ -339,8 +322,7 @@ public class DatabaseService {
                     "','" + toRoute +
                     "','" + getDateAsString(deltacontractdump.getFromDate()) +
                     "','" + endDateStr +
-
-                    "',now()::date" +
+                    "', current_timestamp" +
                     "," + deltacontractdump.getBasePrice() +
                     ",'" + deltacontractdump.getCurr() +
                     "','" + deltacontractdump.getPrUM() +
@@ -355,12 +337,15 @@ public class DatabaseService {
                     "','" + deltacontractdump.getRouteType() +
                     "','" + deltacontractdump.getZoneType() +
                     "','" + deltacontractdump.getRemark() +
-                    "',now()::date" +
+                    "',current_timestamp " +
                     "," + deltacontractdump.getPriceId() +
                     ")";
+
             String sql_final = INSERT_DELTACONTRACTDUMP + values;
-            stmt.execute(sql_final);
-            int insertCount = stmt.getUpdateCount();
+            entityManager.getTransaction().begin();
+           int insertCount=entityManager.createNativeQuery(sql_final).executeUpdate();
+           entityManager.getTransaction().commit();
+           entityManager.close();
             return insertCount;
         } catch (Exception ex) {
             logger.warning("Error[" + ex.getMessage() + "] while processing delta for: OrganizationNumber[{" + deltacontractdump.getOrganizationNumber() + "}],customerNumber[{" + deltacontractdump.getCustomerNumber() + "}],RouteFrom[{" + deltacontractdump.getRouteFrom() + "}],RouteTo[{" + deltacontractdump.getRouteTo() + "}],ProdNo[{" + deltacontractdump.getProdNo() + "}],Price[{" + deltacontractdump.getBasePrice() + "}]");
@@ -370,11 +355,9 @@ public class DatabaseService {
 
     public int insertDeltaContractDumpUsingJDBC(Percentagebaseddeltadump percentagebaseddeltadump, Logger logger) {
         try {
-            if (con == null || con.isClosed()) {
-                //con = DriverManager.getConnection("jdbc:postgresql://139.114.151.175:5432/priceengine_crossborder_prod_06APR2022?ApplicationName=PriceengineExcelToDatabase", "postgres", "priceengine");
-                con = DriverManager.getConnection(PriceEngineConstants.DB_CONNECTION_URL,PriceEngineConstants.DB_CONNECTION_USERNAME, PriceEngineConstants.DB_CONNECTION_PASSWORD);
-            }
-            Statement stmt = con.createStatement();
+            
+            EntityManager entityManager = JPAUtil.getEntityManagerFactory().createEntityManager();
+            
             String routeType = isEmpty(percentagebaseddeltadump.getRouteType()) ? "NULL" : percentagebaseddeltadump.getRouteType();
             String fromRoute = isEmpty(percentagebaseddeltadump.getFromLocation()) ? "NULL" : percentagebaseddeltadump.getFromLocation();
             String toRoute = isEmpty(percentagebaseddeltadump.getToLocation()) ? "NULL" : percentagebaseddeltadump.getToLocation();
@@ -406,9 +389,11 @@ public class DatabaseService {
                //     "',now()::date" +
 
                     ")";
+            entityManager.getTransaction().begin();
             String sql_final = INSERT_PERCENTAGEBASEDDELTADUMP + values;
-            stmt.execute(sql_final);
-            int insertCount = stmt.getUpdateCount();
+           int insertCount= entityManager.createNativeQuery(sql_final).executeUpdate();
+           entityManager.getTransaction().commit();
+           entityManager.close();
             return insertCount;
         } catch (Exception ex) {
             logger.warning("Error[" + ex.getMessage() + "] while processing delta for: ParentCustomerNumber[{" + percentagebaseddeltadump.getParentCustomerNumber() + "}],customerNumber[{" + percentagebaseddeltadump.getCustomerNumber() + "}],FromLocation[{" + percentagebaseddeltadump.getFromLocation() + "}],ToLocation[{" + percentagebaseddeltadump.getToLocation() + "}],ProdNo[{" + percentagebaseddeltadump.getProdno() + "}],Price[{" + percentagebaseddeltadump.getPrecentageDiscount() + "}]");
@@ -425,6 +410,7 @@ public class DatabaseService {
                             int x = insertDeltaContractDumpUsingJDBC(deltacontractdump, logger);
                         } catch (Exception ee) {
                             logger.warning("Error " + ee.getMessage() + " while processing delta for: OrganizationNumber[{" + deltacontractdump.getOrganizationNumber() + "}],customerNumber[{" + deltacontractdump.getCustomerNumber() + "}],RouteFrom[{" + deltacontractdump.getRouteFrom() + "}],RouteTo[{" + deltacontractdump.getRouteTo() + "}],ProdNo[{" + deltacontractdump.getProdNo() + "}],Price[{" + deltacontractdump.getBasePrice() + "}]");
+                            System.exit(1);
                         }
                     }
                 }
@@ -763,10 +749,9 @@ public class DatabaseService {
 
     public int updateDeltaAgreementsPERCENTUsingJDBC(List<Percentagebaseddeltadump> deltacontractdumps, String remark, boolean isUpdated, Logger logger) {
         try {
-            if (con == null || con.isClosed()) {
-                con = DriverManager.getConnection(PriceEngineConstants.DB_CONNECTION_URL, PriceEngineConstants.DB_CONNECTION_USERNAME, PriceEngineConstants.DB_CONNECTION_PASSWORD);
-            }
-            Statement stmt = con.createStatement();
+           
+            EntityManager entityManager = JPAUtil.getEntityManagerFactory().createEntityManager();
+            entityManager.getTransaction().begin();
             int insertCount=0;
             for (Percentagebaseddeltadump d : deltacontractdumps) {
                 if(null!=d.getZoneType() && d.getZoneType().equalsIgnoreCase("null"))
@@ -775,13 +760,14 @@ public class DatabaseService {
                     d.setFromLocation("NULL");
                 if(null==d.getToLocation())
                     d.setToLocation("NULL");
-                String setClause = " SET remark='" + remark + "', updated= '" + isUpdated + "'::boolean ";
-                String whereClause = " WHERE parent_customer_number ='" + d.getParentCustomerNumber() + "' AND customer_number='" + d.getCustomerNumber() + "' AND prodno='" + d.getProdno() + "'::integer AND from_location='" +
-                        d.getFromLocation() + "' AND to_location='" + d.getToLocation() + "' AND startdate='" + getDateAsString(d.getStartdate()) + "'::date AND enddate='" + getDateAsString(d.getEnddate()) + "'::date AND precentage_discount='" +
+                String setClause = " SET remark='" + remark + "', updated= '" + isUpdated + "'\\:\\:boolean ";
+                String whereClause = " WHERE parent_customer_number ='" + d.getParentCustomerNumber() + "' AND customer_number='" + d.getCustomerNumber() + "' AND prodno='" + d.getProdno() + "'\\:\\:integer AND from_location='" +
+                        d.getFromLocation() + "' AND to_location='" + d.getToLocation() + "' AND startdate='" + getDateAsString(d.getStartdate()) + "'\\:\\:date AND enddate='" + getDateAsString(d.getEnddate()) + "'\\:\\:date AND precentage_discount='" +
                         d.getPrecentageDiscount() + "' AND routetype='" + d.getRouteType() + "'";
                 String final_sql = "UPDATE core.percentagebaseddeltadump " + setClause + whereClause;
-                stmt.execute(final_sql);
-                insertCount+=stmt.getUpdateCount();
+                insertCount+=entityManager.createNativeQuery(final_sql).executeUpdate();
+                entityManager.getTransaction().commit();
+                entityManager.close();
             }
             return insertCount;
         } catch (Exception ex) {
@@ -865,7 +851,7 @@ public class DatabaseService {
         LocalDate endDateTime = endInstant.atZone(defaultZone).toLocalDate();
 
         if (party == null)
-            System.out.println("wait contractcomponent - " + contractComponent.getContractComponentId() + " :::: contractdump - " + contractdump.getId());
+            System.out.println("wait contractcomponent - " + contractComponent.getContractComponentId() + " \\:\\:\\:\\: contractdump - " + contractdump.getId());
         if (party != null && party.getParentSourceSystemRecordPk() == null)
             signerRole.setContractRoleTpCd(1);
         else
@@ -897,7 +883,7 @@ public class DatabaseService {
         Date endDateTime = dateFormat.parse(endDate);
 
         if (party == null)
-            System.out.println("wait contractcomponent - " + contractComponent.getContractComponentId() + " :::: surchargedump - " + surchargedump.getId());
+            System.out.println("wait contractcomponent - " + contractComponent.getContractComponentId() + " \\:\\:\\:\\: surchargedump - " + surchargedump.getId());
         if (party != null && party.getParentSourceSystemRecordPk() == null)
             signerRole.setContractRoleTpCd(1);
         else
@@ -1154,23 +1140,25 @@ public class DatabaseService {
 
     public int updateDeltaContractDumpUsingJDBC(List<Deltacontractdump> deltacontractdumps, String remark, boolean isUpdated, Logger logger) {
         try {
-            if (con == null || con.isClosed()) {
-                con = DriverManager.getConnection(PriceEngineConstants.DB_CONNECTION_URL, PriceEngineConstants.DB_CONNECTION_USERNAME, PriceEngineConstants.DB_CONNECTION_PASSWORD);
-            }
-            Statement stmt = con.createStatement();
+            EntityManager entityManager = JPAUtil.getEntityManagerFactory().createEntityManager();
+            entityManager.getTransaction().begin();
             int insertCount=0;
             for (Deltacontractdump d : deltacontractdumps) {
                Double discLmtFrom = d.getDiscLmtFrom()==null?-1:d.getDiscLmtFrom();
-                String setClause = " SET remark='" + remark + "', updated= '" + isUpdated + "'::boolean ";
-                String whereClause = " WHERE organization_number='" + d.getOrganizationNumber() + "' AND customer_number='" + d.getCustomerNumber() + "' AND prodno='" + d.getProdNo() + "'::integer AND routefrom='" +
-                        d.getRouteFrom().toUpperCase() + "' AND routeto='" + d.getRouteTo().toUpperCase() + "' AND startdate='" + getDateAsString(d.getFromDate()) + "'::date AND todate='" + getDateAsString(d.getToDate()) + "'::date AND baseprice='" +
-                        d.getBasePrice() + "'::DECIMAL AND disclmtfrom='" +discLmtFrom + "'::DECIMAL";
+                String setClause = " SET remark='" + remark + "', updated= true "  ;
+                String whereClause = " WHERE organization_number='" + d.getOrganizationNumber() + "' AND customer_number='" + d.getCustomerNumber() + "' AND prodno=" + d.getProdNo() + " AND routefrom='" +
+                        d.getRouteFrom().toUpperCase() + "' AND routeto='" + d.getRouteTo().toUpperCase() + "' AND startdate='" + getDateAsString(d.getFromDate()) + "' AND todate='" + getDateAsString(d.getToDate()) + "'  AND baseprice=" +
+                        d.getBasePrice() + " AND disclmtfrom= " +discLmtFrom ;
                 String final_sql = UPDATE_DELTACONTRACTDUMP + setClause + whereClause;
-                stmt.execute(final_sql);
-                insertCount+=stmt.getUpdateCount();
+                
+                insertCount+=entityManager.createNativeQuery(final_sql).executeUpdate();
             }
+            entityManager.getTransaction().commit();
+            entityManager.close();
             return insertCount;
         } catch (Exception ex) {
+            ex.printStackTrace();
+            System.exit(1);
             return 0;
         }
     }
@@ -1197,6 +1185,10 @@ public class DatabaseService {
         }
     }
 
+    public int updateDeltaContractDumps(HashSet<Deltacontractdump> deltacontractdumps, String remark, boolean isUpdated, Logger logger) {
+        ArrayList<Deltacontractdump> dumps = new ArrayList<Deltacontractdump>(deltacontractdumps);
+        return updateDeltaContractDumpUsingJDBC(dumps, remark,isUpdated,logger);
+    }
 
     public int updateDeltaContractDump(Deltacontractdump deltacontractdump, String remark, boolean isUpdated, Logger logger) {
         List<Deltacontractdump> deltacontractdumps = new ArrayList<>();deltacontractdumps.add(deltacontractdump);
@@ -1205,11 +1197,10 @@ public class DatabaseService {
 
     public int updateSingleDeltaContractDumpUsingJDBC(Deltacontractdump d, String remark, boolean isUpdated, Logger logger) {
         try {
-            if (con == null || con.isClosed()) {
-                con = DriverManager.getConnection(PriceEngineConstants.DB_CONNECTION_URL, PriceEngineConstants.DB_CONNECTION_USERNAME, PriceEngineConstants.DB_CONNECTION_PASSWORD);
-            }
+           
+            EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+            entityManager.getTransaction().begin();
             String setClause = null;
-                    Statement stmt = con.createStatement();
             int insertCount=0;
             if(d.getRouteFrom()==null)
                 d.setRouteFrom("NULL");
@@ -1217,20 +1208,22 @@ public class DatabaseService {
                 d.setRouteTo("NULL");
             if(d.getDiscLmtFrom()==null)
                 d.setDiscLmtFrom(new Double(-1));
-            if(d.getPriceId()!=0)
-                 setClause = " SET price_id= "+ d.getPriceId() +", remark='" + remark + "', updated= '" + isUpdated + "'::boolean ";
+            if(d.getPriceId()!=null && d.getPriceId()!=0)
+                 setClause = " SET price_id= "+ d.getPriceId() +", remark='" + remark + "', updated= '" + isUpdated + "'\\:\\:boolean ";
             else
-                setClause = " SET remark='" + remark + "', updated= '" + isUpdated + "'::boolean ";
+                setClause = " SET remark='" + remark + "', updated= '" + isUpdated + "'\\:\\:boolean ";
 
-                String whereClause = " WHERE organization_number='" + d.getOrganizationNumber() + "' AND customer_number='" + d.getCustomerNumber() + "' AND prodno='" + d.getProdNo() + "'::integer AND routefrom='" +
-                        d.getRouteFrom().toUpperCase() + "' AND routeto='" + d.getRouteTo().toUpperCase() + "' AND startdate='" + getDateAsString(d.getFromDate()) + "'::date AND todate='" + getDateAsString(d.getToDate()) + "'::date AND baseprice='" +
-                        d.getBasePrice() + "'::DECIMAL AND disclmtfrom='" + d.getDiscLmtFrom() + "'::DECIMAL";
+                String whereClause = " WHERE organization_number='" + d.getOrganizationNumber() + "' AND customer_number='" + d.getCustomerNumber() + "' AND prodno='" + d.getProdNo() + "'\\:\\:integer AND routefrom='" +
+                        d.getRouteFrom().toUpperCase() + "' AND routeto='" + d.getRouteTo().toUpperCase() + "' AND startdate='" + getDateAsString(d.getFromDate()) + "'\\:\\:date AND todate='" + getDateAsString(d.getToDate()) + "'\\:\\:date AND baseprice='" +
+                        d.getBasePrice() + "'\\:\\:DECIMAL AND disclmtfrom='" + d.getDiscLmtFrom() + "'\\:\\:DECIMAL";
                 String final_sql = "update core.deltacontractdump "+ setClause + whereClause;
-                stmt.execute(final_sql);
-                insertCount+=stmt.getUpdateCount();
+                insertCount+=entityManager.createNativeQuery(final_sql).executeUpdate();
+                entityManager.getTransaction().commit();
+                entityManager.close();
             return insertCount;
         } catch (Exception ex) {
             ex.printStackTrace();
+            System.exit(1);
             //logger.warning("Error[" + ex.getMessage() + "] while processing delta for: OrganizationNumber[{" + d.getOrganizationNumber() + "}],customerNumber[{" + deltacontractdump.getCustomerNumber() + "}],RouteFrom[{" + deltacontractdump.getRouteFrom() + "}],RouteTo[{" + deltacontractdump.getRouteTo() + "}],ProdNo[{" + deltacontractdump.getProdNo() + "}],Price[{" + deltacontractdump.getBasePrice() + "}]");
             return 0;
         }
@@ -1283,14 +1276,14 @@ public class DatabaseService {
     }
 
     @Transactional
-    public void updateDeltaAgreementsPERCENT(ArrayList<Percentagebaseddeltadump> deltacontractdumps, String remark, Boolean isUpdated) {
+    public void updateDeltaAgreementsPERCENT(HashSet<Percentagebaseddeltadump> deltacontractdumps, String remark, Logger logger) {
 
         EntityManager entityManager = JPAUtil.getEntityManagerFactory().createEntityManager();
         try {
             entityManager.getTransaction().begin();
             for (Percentagebaseddeltadump deltacontractdump : deltacontractdumps) {
                 deltacontractdump.setRemark(remark);
-                deltacontractdump.setUpdated(isUpdated);
+                deltacontractdump.setUpdated(true);
                 entityManager.merge(deltacontractdump);
             }
             entityManager.getTransaction().commit();
@@ -1358,18 +1351,21 @@ public class DatabaseService {
     @Transactional
     public void updateStartDateINPrice(Long priceId, LocalDate startDate, LocalDate endDate) {
         try {
-            Class.forName(PriceEngineConstants.DB_CONNECTION_DRIVER);
-            Connection connection = DriverManager.getConnection(PriceEngineConstants.DB_CONNECTION_URL,PriceEngineConstants.DB_CONNECTION_USERNAME, PriceEngineConstants.DB_CONNECTION_PASSWORD);
-            PreparedStatement stmt = connection.prepareStatement("update core.price set start_dt=? , end_dt=?, last_update_dt=? where price_id= ?");
-            stmt.setDate(1, java.sql.Date.valueOf(startDate));
-            stmt.setDate(2, java.sql.Date.valueOf(endDate));
+            EntityManager entityManager = JPAUtil.getEntityManagerFactory().createEntityManager();
+            entityManager.getTransaction().begin();
+            String SQL="update core.price set start_dt=? , end_dt=?, last_update_dt=? where price_id= ?";
+            
+            Query q=entityManager.createNativeQuery(SQL);
+            q.setParameter(1, java.sql.Date.valueOf(startDate));
+            q.setParameter(2,java.sql.Date.valueOf(endDate));
             if (endDate != null)
-                stmt.setDate(3, java.sql.Date.valueOf(LocalDate.now()));
+                q.setParameter(3, java.sql.Date.valueOf(LocalDate.now()));
             else
-                stmt.setNull(3, Types.DATE);
-            stmt.setLong(4, priceId);
-            stmt.executeUpdate();
-            connection.close();
+            	q.setParameter(3, Types.DATE);
+            q.setParameter(4, priceId);
+            q.executeUpdate();
+            entityManager.getTransaction().commit();
+            entityManager.close();
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -1382,16 +1378,16 @@ public class DatabaseService {
     @Transactional
     public void updateEndDateINOldPrice(Long priceId, LocalDate endDate) {
         try {
-            Class.forName(PriceEngineConstants.DB_CONNECTION_DRIVER);
-            Connection connection = DriverManager.getConnection(PriceEngineConstants.DB_CONNECTION_URL, PriceEngineConstants.DB_CONNECTION_USERNAME, PriceEngineConstants.DB_CONNECTION_PASSWORD);
-            PreparedStatement stmt = connection.prepareStatement("update core.price set end_dt=?, last_update_dt=? where price_id= ?");
-
-                stmt.setDate(1, java.sql.Date.valueOf(endDate));
-                stmt.setDate(2, java.sql.Date.valueOf(LocalDate.now()));
-                stmt.setLong(3, priceId);
-            stmt.executeUpdate();
-            connection.close();
-
+            EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+            entityManager.getTransaction().begin();
+            String SQL="update core.price set end_dt=?, last_update_dt=? where price_id= ?";
+            Query q= entityManager.createNativeQuery(SQL);
+            q.setParameter(1, java.sql.Date.valueOf(endDate));
+            q.setParameter(2, java.sql.Date.valueOf(LocalDate.now()));
+            q.setParameter(3, priceId);
+            q.executeUpdate();
+            entityManager.getTransaction().commit();
+            entityManager.close();
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(1);
@@ -1432,55 +1428,55 @@ public class DatabaseService {
                 Instant toInstantByDB = toDateFromDB.toInstant();
                 toDateDBByZone = toInstantByDB.atZone(defaultZone).toLocalDateTime();
             }
-
-            Class.forName(PriceEngineConstants.DB_CONNECTION_DRIVER);
-            Connection connection = DriverManager.getConnection(PriceEngineConstants.DB_CONNECTION_URL, PriceEngineConstants.DB_CONNECTION_USERNAME, PriceEngineConstants.DB_CONNECTION_PASSWORD);
-            PreparedStatement stmt = connection.prepareStatement(INSERT_PRICE_SQL, Statement.RETURN_GENERATED_KEYS);
+            EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+            entityManager.getTransaction().begin();
+            String SQL = INSERT_PRICE_SQL;
+            Query q=entityManager.createNativeQuery(SQL);
             if (priceType.equals(ExcelService.BASE_PRICE))
-                stmt.setDouble(1, contractdump.getBasePrice());
+            	q.setParameter(1, contractdump.getBasePrice());
             else
-                stmt.setNull(1, Types.DOUBLE);
+            	q.setParameter(1, Types.DOUBLE);
 
-            stmt.setDate(2, new java.sql.Date(date.getTime()));
-            stmt.setString(3, AUTOMATION_USER);
+            q.setParameter(2, new java.sql.Date(date.getTime()));
+            q.setParameter(3, AUTOMATION_USER);
 
             if (null != contractdump.getToDate())
-                stmt.setDate(4, java.sql.Date.valueOf(toDateDBByZone.toLocalDate()));
+            	q.setParameter(4, java.sql.Date.valueOf(toDateDBByZone.toLocalDate()));
             else
-                stmt.setDate(4, java.sql.Date.valueOf(todatetime.toLocalDate()));
+            	q.setParameter(4, java.sql.Date.valueOf(todatetime.toLocalDate()));
 
-            stmt.setLong(5, item.getItemId());
-            stmt.setLong(6, getTxId());
-            stmt.setNull(7, Types.DOUBLE);
-            stmt.setNull(8, Types.DOUBLE);
-            stmt.setLong(9, 3);
+            q.setParameter(5, item.getItemId());
+            q.setParameter(6, getTxId());
+            q.setParameter(7, Types.DOUBLE);
+            q.setParameter(8, Types.DOUBLE);
+            q.setParameter(9, 3);
             if (priceType.equals(ExcelService.BASE_PRICE))
-                stmt.setLong(10, 1);
+            	q.setParameter(10, 1);
             else
-                stmt.setLong(10, 6);
+            	q.setParameter(10, 6);
 
-            stmt.setNull(11, Types.DOUBLE);
-            stmt.setLong(12, 0);
-            stmt.setNull(13, Types.INTEGER);
-            stmt.setLong(14, 1);
-            stmt.setNull(15, Types.INTEGER);
-            stmt.setNull(16, Types.INTEGER);
-            stmt.setLong(17, 3);
-            stmt.setNull(18, Types.INTEGER);
+            q.setParameter(11, Types.DOUBLE);
+            q.setParameter(12, 0);
+            q.setParameter(13, Types.INTEGER);
+            q.setParameter(14, 1);
+            q.setParameter(15, Types.INTEGER);
+            q.setParameter(16, Types.INTEGER);
+            q.setParameter(17, 3);
+            q.setParameter(18, Types.INTEGER);
             if (null != contractdump.getFromDate())
-                stmt.setDate(19, java.sql.Date.valueOf(fromDateDBByZone.toLocalDate()));
+            	q.setParameter(19, java.sql.Date.valueOf(fromDateDBByZone.toLocalDate()));
             else
-                stmt.setDate(19, java.sql.Date.valueOf(fromdatetime.toLocalDate()));
-            stmt.setNull(20, Types.VARCHAR);
-            stmt.setNull(21, Types.DATE); // cehck what date is saving
+            	q.setParameter(19, java.sql.Date.valueOf(fromdatetime.toLocalDate()));
+            q.setParameter(20, Types.VARCHAR);
+            q.setParameter(21, Types.DATE); // cehck what date is saving
             Long priceId = null;
 
-            int i = stmt.executeUpdate();
-            ResultSet rs = stmt.getGeneratedKeys();
-
-            if (rs.next())
-                priceId = rs.getLong("price_id");
-            connection.close();
+            int i = q.executeUpdate();
+            
+            Integer id = (Integer) q.getSingleResult();
+            priceId = id.longValue();
+            entityManager.getTransaction().commit();
+            entityManager.close();
             return priceId;
 
         } catch (Exception e) {
@@ -1494,42 +1490,41 @@ public class DatabaseService {
     @Transactional
     public void insertPriceHistory(Price price) {
         try {
-
-            Class.forName(PriceEngineConstants.DB_CONNECTION_DRIVER);
-            Connection connection = DriverManager.getConnection(PriceEngineConstants.DB_CONNECTION_URL,PriceEngineConstants.DB_CONNECTION_USERNAME, PriceEngineConstants.DB_CONNECTION_PASSWORD);
-            PreparedStatement stmt = connection.prepareStatement(INSERT_PRICE_HISTORY_SQL);
+        	EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+        	entityManager.getTransaction().begin();
+            Query q = entityManager.createNativeQuery(INSERT_PRICE_HISTORY_SQL);
 
             if (null != price.getBasePrice())
-                stmt.setDouble(1, price.getBasePrice().doubleValue());
+            	q.setParameter(1, price.getBasePrice().doubleValue());
             else
-                stmt.setNull(1, Types.DOUBLE);
+            	q.setParameter(1, Types.DOUBLE);
 
-            stmt.setDate(2, java.sql.Date.valueOf(LocalDate.now()));
-            stmt.setString(3, AUTOMATION_USER);
-            stmt.setDate(4, java.sql.Date.valueOf(price.getEndDt()));
+            q.setParameter(2, java.sql.Date.valueOf(LocalDate.now()));
+            q.setParameter(3, AUTOMATION_USER);
+            q.setParameter(4, java.sql.Date.valueOf(price.getEndDt()));
 
-            stmt.setLong(5, price.getItemId());
-            stmt.setLong(6, getTxId());
-            stmt.setNull(7, Types.DOUBLE);
-            stmt.setNull(8, Types.DOUBLE);
-            stmt.setLong(9, price.getPriceCalcTpCd());
-            stmt.setLong(10, price.getPriceDefTpCd());
+            q.setParameter(5, price.getItemId());
+            q.setParameter(6, getTxId());
+            q.setParameter(7, Types.DOUBLE);
+            q.setParameter(8, Types.DOUBLE);
+            q.setParameter(9, price.getPriceCalcTpCd());
+            q.setParameter(10, price.getPriceDefTpCd());
 
-            stmt.setNull(11, Types.DOUBLE);
-            stmt.setLong(12, 0);
-            stmt.setNull(13, Types.INTEGER);
-            stmt.setLong(14, 1);
-            stmt.setNull(15, Types.INTEGER);
-            stmt.setNull(16, Types.INTEGER);
-            stmt.setLong(17, 3);
-            stmt.setNull(18, Types.INTEGER);
-            stmt.setDate(19, java.sql.Date.valueOf(price.getStartDt()));
-            stmt.setNull(20, Types.VARCHAR);
-            stmt.setNull(21, Types.DATE); // cehck what date is saving
-            stmt.setLong(22, price.getPriceId());
-            int i = stmt.executeUpdate();
-            connection.close();
-
+            q.setParameter(11, Types.DOUBLE);
+            q.setParameter(12, 0);
+            q.setParameter(13, Types.INTEGER);
+            q.setParameter(14, 1);
+            q.setParameter(15, Types.INTEGER);
+            q.setParameter(16, Types.INTEGER);
+            q.setParameter(17, 3);
+            q.setParameter(18, new Date());
+            q.setParameter(19, java.sql.Date.valueOf(price.getStartDt()));
+            q.setParameter(20, Types.VARCHAR);
+            q.setParameter(21, Types.DATE); // cehck what date is saving
+            q.setParameter(22, price.getPriceId());
+            int i = q.executeUpdate();
+            entityManager.getTransaction().commit();
+            entityManager.close();
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(1);
@@ -1550,47 +1545,45 @@ public class DatabaseService {
             Date parsedEndDate = df.parse(endDate);
             java.sql.Timestamp endDt = new java.sql.Timestamp(parsedEndDate.getTime());
 
-
-            Class.forName(PriceEngineConstants.DB_CONNECTION_DRIVER);
-            Connection connection = DriverManager.getConnection(PriceEngineConstants.DB_CONNECTION_URL,PriceEngineConstants.DB_CONNECTION_USERNAME, PriceEngineConstants.DB_CONNECTION_PASSWORD);
-            PreparedStatement stmt = connection.prepareStatement(INSERT_PERCENTAGEBASED_PRICE_SQL, Statement.RETURN_GENERATED_KEYS);
+            EntityManager entityManager= JPAUtil.getEntityManagerFactory().createEntityManager();
+            entityManager.getTransaction().begin();
+            Query q=entityManager.createNativeQuery(INSERT_PERCENTAGEBASED_PRICE_SQL);
             //if(null!=contractdump.getPrecentageDiscount())
             Double d = new Double(contractdump.getPrecentageDiscount());
             // d = d * (-1);
-            stmt.setDouble(1, d);
-            stmt.setDate(2, new java.sql.Date(date.getTime()));
-            stmt.setString(3, AUTOMATION_USER);
+            q.setParameter(1, d);
+            q.setParameter(2, new java.sql.Date(date.getTime()));
+            q.setParameter(3, AUTOMATION_USER);
             if (null != contractdump.getEnddate())
-                stmt.setDate(4, new java.sql.Date(contractdump.getEnddate().getTime()));
+            	q.setParameter(4, new java.sql.Date(contractdump.getEnddate().getTime()));
             else
-                stmt.setDate(4, new java.sql.Date(endDt.getTime()));
+            	q.setParameter(4, new java.sql.Date(endDt.getTime()));
 
-            stmt.setLong(5, item.getItemId());
-            stmt.setLong(6, getTxId());
-            stmt.setLong(7, 7);
-            stmt.setLong(8, 1);
+            q.setParameter(5, item.getItemId());
+            q.setParameter(6, getTxId());
+            q.setParameter(7, 7);
+            q.setParameter(8, 1);
 
-            stmt.setLong(9, 3);
-            stmt.setNull(10, Types.DOUBLE);
-            stmt.setLong(11, 0);
-            stmt.setNull(12, Types.INTEGER);
+            q.setParameter(9, 3);
+            q.setParameter(10, Types.DOUBLE);
+            q.setParameter(11, 0);
+            q.setParameter(12, Types.INTEGER);
 
-            stmt.setLong(13, 1);
-            stmt.setNull(14, Types.INTEGER);
-            stmt.setNull(15, Types.INTEGER);
-            stmt.setLong(16, 3);
-            stmt.setNull(17, Types.INTEGER);
+            q.setParameter(13, 1);
+            q.setParameter(14, Types.INTEGER);
+            q.setParameter(15, Types.INTEGER);
+            q.setParameter(16, 3);
+            q.setParameter(17, Types.INTEGER);
             if (null != contractdump.getStartdate())
-                stmt.setDate(18, new java.sql.Date(contractdump.getStartdate().getTime()));
+            	q.setParameter(18, new java.sql.Date(contractdump.getStartdate().getTime()));
             else
-                stmt.setDate(18, new java.sql.Date(startDate.getTime()));
-            int i = stmt.executeUpdate();
-            ResultSet rs = stmt.getGeneratedKeys();
-            if (rs.next()) {
-                priceId = rs.getLong(1);
-            }
-
-            connection.close();
+            	q.setParameter(18, new java.sql.Date(startDate.getTime()));
+            int i = q.executeUpdate();
+            entityManager.getTransaction().commit();
+            Integer id = (Integer) q.getSingleResult();
+            priceId = id.longValue();
+            
+            entityManager.close();
             return priceId;
 
         } catch (Exception e) {
@@ -1628,39 +1621,38 @@ public class DatabaseService {
             String endDate = "2022-12-31 00:00:00";
             Date parsedEndDate = df.parse(endDate);
             java.sql.Timestamp endDt = new java.sql.Timestamp(parsedEndDate.getTime());
-
-            Class.forName(PriceEngineConstants.DB_CONNECTION_DRIVER);
-            Connection connection = DriverManager.getConnection(PriceEngineConstants.DB_CONNECTION_URL, PriceEngineConstants.DB_CONNECTION_USERNAME,PriceEngineConstants.DB_CONNECTION_PASSWORD);
-            PreparedStatement stmt = connection.prepareStatement(INSERT_SURCHARGE_PERCENTAGEBASED_PRICE_SQL, Statement.RETURN_GENERATED_KEYS);
+            EntityManager entityManager= JPAUtil.getEntityManagerFactory().createEntityManager();
+            entityManager.getTransaction().begin();
+            Query q = entityManager.createNativeQuery(INSERT_SURCHARGE_PERCENTAGEBASED_PRICE_SQL);
             //if(null!=contractdump.getPrecentageDiscount())
-            stmt.setDouble(1, percentValue);
-            stmt.setDate(2, new java.sql.Date(date.getTime()));
-            stmt.setString(3, AUTOMATION_USER);
-            stmt.setDate(4, new java.sql.Date(endDt.getTime()));
+            q.setParameter(1, percentValue);
+            q.setParameter(2, new java.sql.Date(date.getTime()));
+            q.setParameter(3, AUTOMATION_USER);
+            q.setParameter(4, new java.sql.Date(endDt.getTime()));
 
-            stmt.setLong(5, item.getItemId());
-            stmt.setLong(6, getTxId());
-            stmt.setLong(7, 6);
-            stmt.setLong(8, 5);
+            q.setParameter(5, item.getItemId());
+            q.setParameter(6, getTxId());
+            q.setParameter(7, 6);
+            q.setParameter(8, 5);
 
-            stmt.setLong(9, 3);
-            stmt.setNull(10, Types.DOUBLE);
-            stmt.setLong(11, 0);
-            stmt.setNull(12, Types.INTEGER);
+            q.setParameter(9, 3);
+            q.setParameter(10, Types.DOUBLE);
+            q.setParameter(11, 0);
+            q.setParameter(12, Types.INTEGER);
 
-            stmt.setLong(13, 1);
-            stmt.setNull(14, Types.INTEGER);
-            stmt.setNull(15, Types.INTEGER);
-            stmt.setLong(16, 3);
+            q.setParameter(13, 1);
+            q.setParameter(14, Types.INTEGER);
+            q.setParameter(15, Types.INTEGER);
+            q.setParameter(16, 3);
 
-            stmt.setNull(17, Types.INTEGER);
-            stmt.setDate(18, new java.sql.Date(startDate.getTime()));
-            stmt.setLong(19, priceId.longValue());
-            int i = stmt.executeUpdate();
-            ResultSet rs = stmt.getGeneratedKeys();
+            q.setParameter(17, Types.INTEGER);
+            q.setParameter(18, new java.sql.Date(startDate.getTime()));
+            q.setParameter(19, priceId.longValue());
+            int i = q.executeUpdate();
+            entityManager.getTransaction().commit();
+            priceId = (Integer) q.getSingleResult();
 
-
-            connection.close();
+            entityManager.close();
             return priceId.longValue();
 
         } catch (Exception e) {
@@ -1807,79 +1799,67 @@ public class DatabaseService {
 
     private Long insertFirstSlabbasedEnteryValue(Long slabbasedId, Contractdump contractdump) {
         try {
-
-            Class.forName(PriceEngineConstants.DB_CONNECTION_DRIVER);
-            Connection connection = DriverManager.getConnection(PriceEngineConstants.DB_CONNECTION_URL, PriceEngineConstants.DB_CONNECTION_USERNAME, PriceEngineConstants.DB_CONNECTION_PASSWORD);
-            PreparedStatement stmt = connection.prepareStatement(INSERT_SLABBASEDPRICEENTRIES_SQL, Statement.RETURN_GENERATED_KEYS);
+        	EntityManager entityManager= JPAUtil.getEntityManagerFactory().createEntityManager();
+        	entityManager.getTransaction().begin();
+            Query q = entityManager.createNativeQuery(INSERT_SLABBASEDPRICEENTRIES_SQL);
             java.util.Date date = new java.util.Date();
-            stmt.setLong(1, slabbasedId);
-            stmt.setLong(2, 0);
+            q.setParameter(1, slabbasedId);
+            q.setParameter(2, 0);
             if (contractdump.getDiscLmtFrom() != null)
-                stmt.setInt(3, contractdump.getDiscLmtFrom().intValue());
+            	q.setParameter(3, contractdump.getDiscLmtFrom().intValue());
             else
-                stmt.setInt(3, 9999);
-            stmt.setDouble(4, contractdump.getBasePrice());
-            stmt.setBoolean(5, false);
+            	q.setParameter(3, 9999);
+            q.setParameter(4, contractdump.getBasePrice());
+            q.setParameter(5, false);
 
-            int i = stmt.executeUpdate();
-            ResultSet rs = stmt.getGeneratedKeys();
-            if (rs.next()) {
-                slabbasedId = rs.getLong(1);
+            int i = q.executeUpdate();
+            entityManager.getTransaction().commit();
+            Integer id = (Integer) q.getSingleResult();
+                slabbasedId = id.longValue();
+                entityManager.close();
 
-            }
-
-            connection.close();
             //     slabbasedId = queryService.findMaxSlabbasedPriceId();
 
             return slabbasedId;
-        } catch (SQLException sql) {
-            System.out.println("Details ::  " + contractdump.getOrganizationNumber() + " ProdNo ::  " + contractdump.getProdNo());
-            sql.printStackTrace();
-            System.exit(1);
-        } catch (ClassNotFoundException cnf) {
-            cnf.printStackTrace();
-            System.exit(1);
         } catch (NullPointerException nf) {
             nf.printStackTrace();
             System.exit(1);
-        }
+        }catch (Exception sql) {
+            System.out.println("Details \\:\\:  " + contractdump.getOrganizationNumber() + " ProdNo \\:\\:  " + contractdump.getProdNo());
+            sql.printStackTrace();
+            System.exit(1);
+        } 
         return null;
     }
 
     private Long insertSlabbasedEnteryValues(Long slabbasedId, Contractdump contractdump, Double maxVal) {
         try {
-
-            Class.forName(PriceEngineConstants.DB_CONNECTION_DRIVER);
-            Connection connection = DriverManager.getConnection(PriceEngineConstants.DB_CONNECTION_URL, PriceEngineConstants.DB_CONNECTION_USERNAME, PriceEngineConstants.DB_CONNECTION_PASSWORD);
-            PreparedStatement stmt = connection.prepareStatement(INSERT_SLABBASEDPRICEENTRIES_SQL, Statement.RETURN_GENERATED_KEYS);
+        	EntityManager entityManager= JPAUtil.getEntityManagerFactory().createEntityManager();
+        	entityManager.getTransaction().begin();
+            Query q=entityManager.createNativeQuery(INSERT_SLABBASEDPRICEENTRIES_SQL);
             java.util.Date date = new java.util.Date();
-            stmt.setLong(1, slabbasedId);
-            stmt.setInt(2, contractdump.getDiscLmtFrom().intValue());
-            stmt.setLong(3, maxVal.intValue());
+            q.setParameter(1, slabbasedId);
+            q.setParameter(2, contractdump.getDiscLmtFrom().intValue());
+            q.setParameter(3, maxVal.intValue());
             if (contractdump.getDiscLmtFrom().intValue() + 1 > maxVal.intValue())
                 System.out.println("wait   lklklk");
             if (contractdump.getDiscLmtFrom().toString().equals(maxVal.toString()))
                 System.out.println("check here");
 
-            stmt.setDouble(4, contractdump.getPrice());
-            stmt.setBoolean(5, false);
+            q.setParameter(4, contractdump.getPrice());
+            q.setParameter(5, false);
 
-            int i = stmt.executeUpdate();
-            ResultSet rs = stmt.getGeneratedKeys();
-            if (rs.next()) {
-                slabbasedId = rs.getLong(1);
+            int i = q.executeUpdate();
+            entityManager.getTransaction().commit();
+            Integer id = (Integer) q.getSingleResult();
+                slabbasedId = id.longValue();
 
-            }
-
-            connection.close();
+                entityManager.close();
             //     slabbasedId = queryService.findMaxSlabbasedPriceId();
 
             return slabbasedId;
-        } catch (SQLException sql) {
+        } catch (Exception sql) {
             sql.printStackTrace();
-            System.exit(1);
-        } catch (ClassNotFoundException cnf) {
-            cnf.printStackTrace();
             System.exit(1);
         }
         return null;
@@ -1911,43 +1891,35 @@ public class DatabaseService {
 
     private Long insertFirstSlabbasedEnteryValueForITEMS(Long slabbasedId, Contractdump contractdump) {
         try {
-
-            Class.forName(PriceEngineConstants.DB_CONNECTION_DRIVER);
-            Connection connection = DriverManager.getConnection(PriceEngineConstants.DB_CONNECTION_URL, PriceEngineConstants.DB_CONNECTION_USERNAME,PriceEngineConstants.DB_CONNECTION_PASSWORD);
-            PreparedStatement stmt = connection.prepareStatement(INSERT_SLABBASEDPRICEENTRIES_SQL, Statement.RETURN_GENERATED_KEYS);
+        	EntityManager entityManager= JPAUtil.getEntityManagerFactory().createEntityManager();
+        	entityManager.getTransaction().begin();
+        	Query q = entityManager.createNativeQuery(INSERT_SLABBASEDPRICEENTRIES_SQL);
             java.util.Date date = new java.util.Date();
-            stmt.setLong(1, slabbasedId);
-            stmt.setLong(2, 0);
+            q.setParameter(1, slabbasedId);
+            q.setParameter(2, 0);
             if (contractdump.getDiscLmtFrom() != null) {
                 if (contractdump.getDiscLmtFrom().intValue() > 1)
-                    stmt.setInt(3, contractdump.getDiscLmtFrom().intValue() - 1);
+                	q.setParameter(3, contractdump.getDiscLmtFrom().intValue() - 1);
                 else
-                    stmt.setInt(3, contractdump.getDiscLmtFrom().intValue());
+                	q.setParameter(3, contractdump.getDiscLmtFrom().intValue());
             } else
-                stmt.setInt(3, 9999);
-            stmt.setDouble(4, contractdump.getBasePrice());
-            stmt.setBoolean(5, false);
+            	q.setParameter(3, 9999);
+            q.setParameter(4, contractdump.getBasePrice());
+            q.setParameter(5, false);
 
-            int i = stmt.executeUpdate();
-            ResultSet rs = stmt.getGeneratedKeys();
-            if (rs.next()) {
-                slabbasedId = rs.getLong(1);
-
-            }
-
-            connection.close();
+            int i = q.executeUpdate();
+            entityManager.getTransaction().commit();
+            Integer id = (Integer) q.getSingleResult();
+            slabbasedId = id.longValue();
             //     slabbasedId = queryService.findMaxSlabbasedPriceId();
-
+            entityManager.close();
             return slabbasedId;
-        } catch (SQLException sql) {
-            System.out.println("Details ::  " + contractdump.getOrganizationNumber() + " ProdNo ::  " + contractdump.getProdNo());
-            sql.printStackTrace();
-            System.exit(1);
-        } catch (ClassNotFoundException cnf) {
-            cnf.printStackTrace();
-            System.exit(1);
         } catch (NullPointerException nf) {
             nf.printStackTrace();
+            System.exit(1);
+        } catch (Exception sql) {
+            System.out.println("Details ::  " + contractdump.getOrganizationNumber() + " ProdNo ::  " + contractdump.getProdNo());
+            sql.printStackTrace();
             System.exit(1);
         }
         return null;
@@ -1955,38 +1927,31 @@ public class DatabaseService {
 
     private Long insertSlabbasedEnteryValuesForITEMS(Long slabbasedId, Contractdump contractdump, Double maxVal) {
         try {
-
-            Class.forName(PriceEngineConstants.DB_CONNECTION_DRIVER);
-            Connection connection = DriverManager.getConnection(PriceEngineConstants.DB_CONNECTION_URL, PriceEngineConstants.DB_CONNECTION_USERNAME, PriceEngineConstants.DB_CONNECTION_PASSWORD);
-            PreparedStatement stmt = connection.prepareStatement(INSERT_SLABBASEDPRICEENTRIES_SQL, Statement.RETURN_GENERATED_KEYS);
+        	EntityManager entityManager= JPAUtil.getEntityManagerFactory().createEntityManager();
+        	entityManager.getTransaction().begin();
+            Query q= entityManager.createNativeQuery(INSERT_SLABBASEDPRICEENTRIES_SQL);
             java.util.Date date = new java.util.Date();
-            stmt.setLong(1, slabbasedId);
-            stmt.setInt(2, contractdump.getDiscLmtFrom().intValue());
+            q.setParameter(1, slabbasedId);
+            q.setParameter(2, contractdump.getDiscLmtFrom().intValue());
             if (maxVal.intValue() != 9999)
-                stmt.setLong(3, maxVal.intValue() - 1);
+            	q.setParameter(3, maxVal.intValue() - 1);
             else
-                stmt.setLong(3, maxVal.intValue());
+            	q.setParameter(3, maxVal.intValue());
             if (contractdump.getDiscLmtFrom().toString().equals(maxVal.toString()))
                 System.out.println("check here");
-            stmt.setDouble(4, contractdump.getPrice());
-            stmt.setBoolean(5, false);
+            q.setParameter(4, contractdump.getPrice());
+            q.setParameter(5, false);
 
-            int i = stmt.executeUpdate();
-            ResultSet rs = stmt.getGeneratedKeys();
-            if (rs.next()) {
-                slabbasedId = rs.getLong(1);
-
-            }
-
-            connection.close();
+            int i = q.executeUpdate();
+            entityManager.getTransaction().commit();
+            Integer id = (Integer) q.getSingleResult();
+            slabbasedId = id.longValue();
             //     slabbasedId = queryService.findMaxSlabbasedPriceId();
-
+            entityManager.close();
             return slabbasedId;
-        } catch (SQLException sql) {
-            sql.printStackTrace();
-            System.exit(1);
-        } catch (ClassNotFoundException cnf) {
-            cnf.printStackTrace();
+       
+        } catch (Exception e) {
+            e.printStackTrace();
             System.exit(1);
         }
         return null;
@@ -2195,47 +2160,47 @@ public class DatabaseService {
         }
 
         try {
-            Class.forName(PriceEngineConstants.DB_CONNECTION_DRIVER);
-            Connection connection = DriverManager.getConnection(PriceEngineConstants.DB_CONNECTION_URL, PriceEngineConstants.DB_CONNECTION_USERNAME, PriceEngineConstants.DB_CONNECTION_PASSWORD);
-            PreparedStatement stmt = connection.prepareStatement(INSERT_CONTRACTPRICE_SQL);
+        	EntityManager entityManager= JPAUtil.getEntityManagerFactory().createEntityManager();
+        	entityManager.getTransaction().begin();
+            Query q= entityManager.createNativeQuery(INSERT_CONTRACTPRICE_SQL);
             Long longNull = null;
-            stmt.setLong(1, priceId);
-            stmt.setNull(2, Types.BIGINT);
-            stmt.setLong(3, 3);
-            stmt.setNull(4, Types.BIGINT);
+            q.setParameter(1, priceId);
+            q.setParameter(2, Types.BIGINT);
+            q.setParameter(3, 3);
+            q.setParameter(4, Types.BIGINT);
             // if(contractdump.getKgTill()!=null)
             //   stmt.setInt(5, Integer.parseInt(contractdump.getKgTill()));
             //else
-            stmt.setNull(5, Types.BIGINT);
-            stmt.setLong(6, contractComponent.getContractComponentId());
-            stmt.setNull(7, Types.BIGINT);
-            stmt.setNull(8, Types.VARCHAR);
-            stmt.setNull(9, Types.BIGINT);
+            q.setParameter(5, Types.BIGINT);
+            q.setParameter(6, contractComponent.getContractComponentId());
+            q.setParameter(7, Types.BIGINT);
+            q.setParameter(8, Types.VARCHAR);
+            q.setParameter(9, Types.BIGINT);
             Item itemWithoutPassiveReturn = item;
             item = null;
             Integer vaueOfourney = null;
             item = queryService.getNormalItemId(contractdump.getProdNo());
             if (null != item) {
-                stmt.setLong(10, item.getItemId());
+            	q.setParameter(10, item.getItemId());
                 if (isServicePassiveReturned)
                     vaueOfourney = 2;
                 else
                     vaueOfourney = 1;
             } else if (isServicePassiveReturned) {
                 item = itemWithoutPassiveReturn;
-                stmt.setLong(10, item.getItemId());
+                q.setParameter(10, item.getItemId());
                 vaueOfourney = 2;
             } else {
                 item = queryService.getPassiveItemId2(contractdump.getProdNo());
                 if (item != null && contractdump.getProdNo().toString().startsWith("64", contractdump.getProdNo().toString().length() - 2)) {
                     Integer temp = Integer.parseInt(contractdump.getProdNo().toString().substring(0, contractdump.getProdNo().toString().length() - 2));
                     Item itemForAadd = queryService.getNormalItemId(temp);
-                    stmt.setLong(10, itemForAadd.getItemId());
+                    q.setParameter(10, itemForAadd.getItemId());
                     vaueOfourney = 2;
                 } else {
                     item = queryService.getPassiveItemId(contractdump.getProdNo());
                     if (null != item) {
-                        stmt.setLong(10, item.getItemId());
+                    	q.setParameter(10, item.getItemId());
                         vaueOfourney = 1;
                     } else {
                         System.out.println(contractdump.getOrganizationNumber() + " ::: ID " + contractdump.getId());
@@ -2244,79 +2209,76 @@ public class DatabaseService {
                 }
             }
 
-            stmt.setNull(11, Types.BIGINT);
+            q.setParameter(11, Types.BIGINT);
             if (null != fromCountry)
-                stmt.setLong(12, fromCountry.getCountryTpCd());
+            	q.setParameter(12, fromCountry.getCountryTpCd());
             else
-                stmt.setNull(12, Types.BIGINT);
+            	q.setParameter(12, Types.BIGINT);
 
             if (fromPostalCode != null)
-                stmt.setString(13, fromPostalCode);
+            	q.setParameter(13, fromPostalCode);
             else
-                stmt.setNull(13, Types.VARCHAR);
+            	q.setParameter(13, Types.VARCHAR);
 
             if (null != toCountry)
-                stmt.setLong(14, toCountry.getCountryTpCd());
+            	q.setParameter(14, toCountry.getCountryTpCd());
             else
-                stmt.setNull(14, Types.BIGINT);
+            	q.setParameter(14, Types.BIGINT);
 
             if (toPostalCode != null)
-                stmt.setString(15, toPostalCode);
+            	q.setParameter(15, toPostalCode);
             else
-                stmt.setNull(15, Types.VARCHAR);
+            	q.setParameter(15, Types.VARCHAR);
 
             if (null != fromZone)
-                stmt.setInt(16, Integer.parseInt(fromZone));
+            	q.setParameter(16, Integer.parseInt(fromZone));
             else
-                stmt.setNull(16, Types.BIGINT);
+            	q.setParameter(16, Types.BIGINT);
 
             if (null != toZone)
-                stmt.setInt(17, Integer.parseInt(toZone));
+            	q.setParameter(17, Integer.parseInt(toZone));
             else
-                stmt.setNull(17, Types.BIGINT);
-            stmt.setString(18, contractdump.getCurr());
+            	q.setParameter(17, Types.BIGINT);
+            q.setParameter(18, contractdump.getCurr());
 
             if (toZoneId349 != null)
-                stmt.setInt(19, toZoneId349);
+            	q.setParameter(19, toZoneId349);
             else
-                stmt.setNull(19, Types.BIGINT);
+            	q.setParameter(19, Types.BIGINT);
 
             // add 20th here
             if (vaueOfourney != null)
-                stmt.setInt(20, vaueOfourney);
+            	q.setParameter(20, vaueOfourney);
             else
-                stmt.setNull(20, Types.BIGINT);
+            	q.setParameter(20, Types.BIGINT);
             if (null != contractdump.getZoneType() && contractdump.getZoneType().equals("C")) {
-                stmt.setInt(21, 5);
+            	q.setParameter(21, 5);
             } else if (null != contractdump.getZoneType() && contractdump.getZoneType().equals("S")) {
-                stmt.setInt(21, 4);
+            	q.setParameter(21, 4);
             } else {
-                stmt.setNull(21, Types.INTEGER);
+            	q.setParameter(21, Types.INTEGER);
             }
 
             if (null != fromCustomZone)
-                stmt.setInt(22, fromCustomZone);
+            	q.setParameter(22, fromCustomZone);
             else
-                stmt.setNull(22, Types.INTEGER);
+            	q.setParameter(22, Types.INTEGER);
 
             if (null != toCustomZone)
-                stmt.setInt(23, toCustomZone);
+            	q.setParameter(23, toCustomZone);
             else
-                stmt.setNull(23, Types.INTEGER);
+            	q.setParameter(23, Types.INTEGER);
 
-            int i = stmt.executeUpdate();
-            connection.close();
+            int i = q.executeUpdate();
+            entityManager.getTransaction().commit();
             return;
         } catch (NullPointerException ne) {
             System.out.println("Error comes here in contractcomonent table " + contractComponent.getContractComponentId());
             System.out.println();
             System.exit(1);
-        } catch (SQLException sql) {
+        } catch (Exception sql) {
             sql.printStackTrace();
             System.out.println("Contractdump " + contractdump.getId());
-            System.exit(1);
-        } catch (ClassNotFoundException cnf) {
-            cnf.printStackTrace();
             System.exit(1);
         }
         return;
@@ -2326,50 +2288,48 @@ public class DatabaseService {
     public Boolean insertContractPriceExemmption(ContractComponent contractComponent, Item item, Long priceId) {
         Boolean status = false;
         try {
-            Class.forName(PriceEngineConstants.DB_CONNECTION_DRIVER);
-            Connection connection = DriverManager.getConnection(PriceEngineConstants.DB_CONNECTION_URL, PriceEngineConstants.DB_CONNECTION_USERNAME, PriceEngineConstants.DB_CONNECTION_PASSWORD);
-            PreparedStatement stmt = connection.prepareStatement(INSERT_CONTRACTPRICE_SQL);
+        	EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+        	entityManager.getTransaction().begin();
+            Query q = entityManager.createNativeQuery(INSERT_CONTRACTPRICE_SQL);
             Long longNull = null;
-            stmt.setLong(1, priceId);
-            stmt.setNull(2, Types.BIGINT);
-            stmt.setLong(3, 2);
+            q.setParameter(1, priceId);
+            q.setParameter(2, Types.BIGINT);
+            q.setParameter(3, 2);
             //  stmt.setNull(4, Types.BIGINT);
             if (item.getItemId().equals(new Long(2316)) || item.getItemId().equals(new Long(2318)))
-                stmt.setInt(4, 3205);
+            	q.setParameter(4, 3205);
             else if (item.getItemId().equals(new Long(2317)) || item.getItemId().equals(new Long(2319)))
-                stmt.setInt(4, 3216);
-            stmt.setNull(5, Types.BIGINT);
-            stmt.setLong(6, contractComponent.getContractComponentId());
-            stmt.setNull(7, Types.BIGINT);
-            stmt.setNull(8, Types.VARCHAR);
-            stmt.setNull(9, Types.BIGINT);
-            stmt.setLong(10, item.getItemId());
-            stmt.setNull(11, Types.BIGINT);
-            stmt.setNull(12, Types.BIGINT);
-            stmt.setNull(13, Types.VARCHAR);
-            stmt.setNull(14, Types.BIGINT);
-            stmt.setNull(15, Types.VARCHAR);
-            stmt.setNull(16, Types.BIGINT);
-            stmt.setNull(17, Types.BIGINT);
-            stmt.setNull(18, Types.VARCHAR);
-            stmt.setNull(19, Types.BIGINT);
-            stmt.setNull(20, Types.BIGINT);
-            stmt.setInt(21, 6);
-            stmt.setNull(22, Types.INTEGER);
-            stmt.setNull(23, Types.INTEGER);
+            	q.setParameter(4, 3216);
+            q.setParameter(5, Types.BIGINT);
+            q.setParameter(6, contractComponent.getContractComponentId());
+            q.setParameter(7, Types.BIGINT);
+            q.setParameter(8, Types.VARCHAR);
+            q.setParameter(9, Types.BIGINT);
+            q.setParameter(10, item.getItemId());
+            q.setParameter(11, Types.BIGINT);
+            q.setParameter(12, Types.BIGINT);
+            q.setParameter(13, Types.VARCHAR);
+            q.setParameter(14, Types.BIGINT);
+            q.setParameter(15, Types.VARCHAR);
+            q.setParameter(16, Types.BIGINT);
+            q.setParameter(17, Types.BIGINT);
+            q.setParameter(18, Types.VARCHAR);
+            q.setParameter(19, Types.BIGINT);
+            q.setParameter(20, Types.BIGINT);
+            q.setParameter(21, 6);
+            q.setParameter(22, Types.INTEGER);
+            q.setParameter(23, Types.INTEGER);
 
 
-            int i = stmt.executeUpdate();
-            connection.close();
+            int i = q.executeUpdate();
+            entityManager.getTransaction().commit();
+            entityManager.close();
             return true;
         } catch (NullPointerException ne) {
             ne.printStackTrace();
             System.exit(1);
-        } catch (SQLException sql) {
+        } catch (Exception sql) {
             sql.printStackTrace();
-            System.exit(1);
-        } catch (ClassNotFoundException cnf) {
-            cnf.printStackTrace();
             System.exit(1);
         }
         return false;
@@ -2557,39 +2517,39 @@ public class DatabaseService {
         ///}
 
         try {
-            Class.forName(PriceEngineConstants.DB_CONNECTION_DRIVER);
-            Connection connection = DriverManager.getConnection(PriceEngineConstants.DB_CONNECTION_URL, PriceEngineConstants.DB_CONNECTION_USERNAME, PriceEngineConstants.DB_CONNECTION_PASSWORD);
-            PreparedStatement stmt = connection.prepareStatement(INSERT_CONTRACTPRICE_SQL);// Percentage based
+        	EntityManager entityManager= JPAUtil.getEntityManagerFactory().createEntityManager();
+        	entityManager.getTransaction().begin();
+            Query q = entityManager.createNativeQuery(INSERT_CONTRACTPRICE_SQL);// Percentage based
             Long longNull = null;
-            stmt.setLong(1, priceId);
-            stmt.setNull(2, Types.BIGINT);
-            stmt.setLong(3, 3);
-            stmt.setNull(4, Types.BIGINT);
+            q.setParameter(1, priceId);
+            q.setParameter(2, Types.BIGINT);
+            q.setParameter(3, 3);
+            q.setParameter(4, Types.BIGINT);
             // if(contractdump.getKgTill()!=null)
             //   stmt.setInt(5, Integer.parseInt(contractdump.getKgTill()));
             //else
-            stmt.setNull(5, Types.BIGINT);
-            stmt.setLong(6, contractComponent.getContractComponentId());
-            stmt.setNull(7, Types.BIGINT);
-            stmt.setNull(8, Types.VARCHAR);
-            stmt.setNull(9, Types.BIGINT);
+            q.setParameter(5, Types.BIGINT);
+            q.setParameter(6, contractComponent.getContractComponentId());
+            q.setParameter(7, Types.BIGINT);
+            q.setParameter(8, Types.VARCHAR);
+            q.setParameter(9, Types.BIGINT);
             item = null;
             Integer vaueOfourney = null;
             item = queryService.getNormalItemId(contractdump.getProdno());
             if (null != item) {
-                stmt.setLong(10, item.getItemId());
+            	q.setParameter(10, item.getItemId());
                 vaueOfourney = 1;
             } else {
                 item = queryService.getPassiveItemId2(contractdump.getProdno());
                 if (item != null && contractdump.getProdno().toString().startsWith("64", contractdump.getProdno().toString().length() - 2)) {
                     Integer temp = Integer.parseInt(contractdump.getProdno().toString().substring(0, contractdump.getProdno().toString().length() - 2));
                     Item itemForAadd = queryService.getNormalItemId(temp);
-                    stmt.setLong(10, itemForAadd.getItemId());
+                    q.setParameter(10, itemForAadd.getItemId());
                     vaueOfourney = 2;
                 } else {
                     item = queryService.getPassiveItemId(contractdump.getProdno());
                     if (null != item) {
-                        stmt.setLong(10, item.getItemId());
+                    	q.setParameter(10, item.getItemId());
                         vaueOfourney = 1;
                     } else {
                         System.out.println(contractdump.getParentCustomerNumber() + " ::: ID " + contractdump.getId());
@@ -2598,70 +2558,68 @@ public class DatabaseService {
                 }
             }
 
-            stmt.setNull(11, Types.BIGINT);
+            q.setParameter(11, Types.BIGINT);
             if (null != fromCountry)
-                stmt.setLong(12, fromCountry.getCountryTpCd());
+            	q.setParameter(12, fromCountry.getCountryTpCd());
             else
-                stmt.setNull(12, Types.BIGINT);
+            	q.setParameter(12, Types.BIGINT);
 
             if (fromPostalCode != null)
-                stmt.setString(13, fromPostalCode);
+            	q.setParameter(13, fromPostalCode);
             else
-                stmt.setNull(13, Types.VARCHAR);
+            	q.setParameter(13, Types.VARCHAR);
 
             if (null != toCountry)
-                stmt.setLong(14, toCountry.getCountryTpCd());
+            	q.setParameter(14, toCountry.getCountryTpCd());
             else
-                stmt.setNull(14, Types.BIGINT);
+            	q.setParameter(14, Types.BIGINT);
 
             if (toPostalCode != null)
-                stmt.setString(15, toPostalCode);
+            	q.setParameter(15, toPostalCode);
             else
-                stmt.setNull(15, Types.VARCHAR);
+            	q.setParameter(15, Types.VARCHAR);
 
             if (null != fromZone)
-                stmt.setInt(16, Integer.parseInt(fromZone));
+            	q.setParameter(16, Integer.parseInt(fromZone));
             else
-                stmt.setNull(16, Types.BIGINT);
+            	q.setParameter(16, Types.BIGINT);
 
             if (null != toZone)
-                stmt.setInt(17, Integer.parseInt(toZone));
+            	q.setParameter(17, Integer.parseInt(toZone));
             else
-                stmt.setNull(17, Types.BIGINT);
-            stmt.setNull(18, Types.VARCHAR);
+            	q.setParameter(17, Types.BIGINT);
+            q.setParameter(18, Types.VARCHAR);
 
             if (toZoneId349 != null)
-                stmt.setInt(19, toZoneId349);
+            	q.setParameter(19, toZoneId349);
             else
-                stmt.setNull(19, Types.BIGINT);
+            	q.setParameter(19, Types.BIGINT);
 
             // add 20th here
             if (vaueOfourney != null)
-                stmt.setInt(20, vaueOfourney);
+            	q.setParameter(20, vaueOfourney);
             else
-                stmt.setNull(20, Types.BIGINT);
+            	q.setParameter(20, Types.BIGINT);
             if (null != contractdump.getZoneType() && contractdump.getZoneType().equals("C")) {
-                stmt.setInt(21, 5);
+            	q.setParameter(21, 5);
             } else if (null != contractdump.getZoneType() && contractdump.getZoneType().equals("S")) {
-                stmt.setInt(21, 4);
+            	q.setParameter(21, 4);
             } else {
-                stmt.setNull(21, Types.INTEGER);
+            	q.setParameter(21, Types.INTEGER);
             }
-            stmt.setNull(22, Types.INTEGER);
-            stmt.setNull(23, Types.INTEGER);
+            q.setParameter(22, Types.INTEGER);
+            q.setParameter(23, Types.INTEGER);
 
 
-            int i = stmt.executeUpdate();
-            connection.close();
+            int i = q.executeUpdate();
+            entityManager.getTransaction().commit();
+            entityManager.close();
             return;
         } catch (NullPointerException ne) {
             ne.printStackTrace();
             System.exit(1);
-        } catch (SQLException sql) {
+        } catch (Exception sql) {
             sql.printStackTrace();
-            System.exit(1);
-        } catch (ClassNotFoundException cnf) {
-            cnf.printStackTrace();
             System.exit(1);
         }
         return;
@@ -2670,12 +2628,13 @@ public class DatabaseService {
     @Transactional
     public void updateDeltaAggRemovePrice(Long id) {
         try {
-            Class.forName(PriceEngineConstants.DB_CONNECTION_DRIVER);
-            Connection connection = DriverManager.getConnection(PriceEngineConstants.DB_CONNECTION_URL, PriceEngineConstants.DB_CONNECTION_USERNAME, PriceEngineConstants.DB_CONNECTION_PASSWORD);
-            String query = "update core.deltacontractdump set price_id=null where price_id = " + id;
-            PreparedStatement stmt = connection.prepareStatement(query);
-            stmt.executeUpdate();
-            connection.close();
+        	EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+        	entityManager.getTransaction().begin();
+        	String query = "update core.deltacontractdump set price_id=null where price_id = " + id;
+            Query q = entityManager.createNativeQuery(query);
+            q.executeUpdate();
+            entityManager.getTransaction().commit();
+            entityManager.close();
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -2686,93 +2645,91 @@ public class DatabaseService {
     public void insertContractPriceHistory(ContractPrice contractPrice) {
 
         try {
-            Class.forName(PriceEngineConstants.DB_CONNECTION_DRIVER);
-            Connection connection = DriverManager.getConnection(PriceEngineConstants.DB_CONNECTION_URL, PriceEngineConstants.DB_CONNECTION_USERNAME, PriceEngineConstants.DB_CONNECTION_PASSWORD);
-            PreparedStatement stmt = connection.prepareStatement(INSERT_CONTRACTPRICE_HISTORY_SQL);
+        	EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+        	entityManager.getTransaction().begin();
+        	Query q = entityManager.createNativeQuery(INSERT_CONTRACTPRICE_HISTORY_SQL);
             Long longNull = null;
-            stmt.setLong(1, contractPrice.getPriceId());
-            stmt.setNull(2, Types.BIGINT);
-            stmt.setLong(3, 3);
-            stmt.setNull(4, Types.BIGINT);
+            q.setParameter(1, contractPrice.getPriceId());
+            q.setParameter(2, Types.BIGINT);
+            q.setParameter(3, 3);
+            q.setParameter(4, Types.BIGINT);
             // if(contractdump.getKgTill()!=null)
             //   stmt.setInt(5, Integer.parseInt(contractdump.getKgTill()));
             //else
             if (null != contractPrice.getPriority())
-                stmt.setLong(5, contractPrice.getPriority());
+            	q.setParameter(5, contractPrice.getPriority());
             else
-                stmt.setNull(5, Types.BIGINT);
+            	q.setParameter(5, Types.BIGINT);
 
-            stmt.setLong(6, contractPrice.getContractcomponentId());
-            stmt.setNull(7, Types.BIGINT);
-            stmt.setNull(8, Types.VARCHAR);
-            stmt.setNull(9, Types.BIGINT);
-            stmt.setLong(10, contractPrice.getItemIdDup());
-            stmt.setNull(11, Types.BIGINT);
+            q.setParameter(6, contractPrice.getContractcomponentId());
+            q.setParameter(7, Types.BIGINT);
+            q.setParameter(8, Types.VARCHAR);
+            q.setParameter(9, Types.BIGINT);
+            q.setParameter(10, contractPrice.getItemIdDup());
+            q.setParameter(11, Types.BIGINT);
             if (null != contractPrice.getFromCountry())
-                stmt.setLong(12, contractPrice.getFromCountry());
+            	q.setParameter(12, contractPrice.getFromCountry());
             else
-                stmt.setNull(12, Types.INTEGER);
+            	q.setParameter(12, Types.INTEGER);
             if (null != contractPrice.getFromPostalCode())
-                stmt.setString(13, contractPrice.getFromPostalCode());
+            	q.setParameter(13, contractPrice.getFromPostalCode());
             else
-                stmt.setNull(13, Types.INTEGER);
+            	q.setParameter(13, Types.INTEGER);
 
             if (null != contractPrice.getToCountry())
-                stmt.setLong(14, contractPrice.getToCountry());
+            	q.setParameter(14, contractPrice.getToCountry());
             else
-                stmt.setNull(14, Types.BIGINT);
+            	q.setParameter(14, Types.BIGINT);
 
             if (contractPrice.getToPostcalCode() != null)
-                stmt.setString(15, contractPrice.getToPostcalCode());
+            	q.setParameter(15, contractPrice.getToPostcalCode());
             else
-                stmt.setNull(15, Types.INTEGER);
+            	q.setParameter(15, Types.INTEGER);
 
             if (null != contractPrice.getToCountryZoneCountFrom())
-                stmt.setInt(16, contractPrice.getToCountryZoneCountFrom());
+            	q.setParameter(16, contractPrice.getToCountryZoneCountFrom());
             else
-                stmt.setNull(16, Types.BIGINT);
+            	q.setParameter(16, Types.BIGINT);
 
             if (null != contractPrice.getToCountryZoneCountTo())
-                stmt.setInt(17, contractPrice.getToCountryZoneCountTo());
+            	q.setParameter(17, contractPrice.getToCountryZoneCountTo());
             else
-                stmt.setNull(17, Types.BIGINT);
-            stmt.setString(18, contractPrice.getCurrency());
+            	q.setParameter(17, Types.BIGINT);
+            q.setParameter(18, contractPrice.getCurrency());
 
             if (contractPrice.getZoneId() != null)
-                stmt.setInt(19, contractPrice.getZoneId());
+            	q.setParameter(19, contractPrice.getZoneId());
             else
-                stmt.setNull(19, Types.BIGINT);
+            	q.setParameter(19, Types.BIGINT);
 
             // add 20th here
             if (contractPrice.getApplJourneyTpCd() != null)
-                stmt.setInt(20, contractPrice.getApplJourneyTpCd());
+            	q.setParameter(20, contractPrice.getApplJourneyTpCd());
             else
-                stmt.setNull(20, Types.BIGINT);
-            stmt.setInt(21, contractPrice.getContractpriceProcessingTpCd());
+            	q.setParameter(20, Types.BIGINT);
+            q.setParameter(21, contractPrice.getContractpriceProcessingTpCd());
 
             if (null != contractPrice.getFromRouteId())
-                stmt.setInt(22, contractPrice.getFromRouteId());
+            	q.setParameter(22, contractPrice.getFromRouteId());
             else
-                stmt.setNull(22, Types.INTEGER);
+            	q.setParameter(22, Types.INTEGER);
 
             if (null != contractPrice.getToRouteId())
-                stmt.setInt(23, contractPrice.getToRouteId());
+            	q.setParameter(23, contractPrice.getToRouteId());
             else
-                stmt.setNull(23, Types.INTEGER);
+            	q.setParameter(23, Types.INTEGER);
 
-            int i = stmt.executeUpdate();
-            connection.close();
+            int i = q.executeUpdate();
+            entityManager.getTransaction().commit();
+            entityManager.close();
             return;
         } catch (NullPointerException ne) {
             ne.printStackTrace();
             System.exit(1);
-        } catch (SQLException sql) {
+        } catch (Exception sql) {
             sql.printStackTrace();
             System.exit(1);
-        } catch (ClassNotFoundException cnf) {
-            cnf.printStackTrace();
-            System.exit(1);
-        }
+        } 
         return;
     }
 
@@ -2781,45 +2738,38 @@ public class DatabaseService {
 
         try {
             Long slabbasedId = null;
-            Class.forName(PriceEngineConstants.DB_CONNECTION_DRIVER);
-            Connection connection = DriverManager.getConnection(PriceEngineConstants.DB_CONNECTION_URL, PriceEngineConstants.DB_CONNECTION_USERNAME, PriceEngineConstants.DB_CONNECTION_PASSWORD);
-            PreparedStatement stmt = connection.prepareStatement(INSERT_SLABBASEDPRICE_SQL, Statement.RETURN_GENERATED_KEYS);
+            EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+            entityManager.getTransaction().begin();
+        	Query q = entityManager.createNativeQuery(INSERT_SLABBASEDPRICE_SQL);
             java.util.Date date = new java.util.Date();
-            stmt.setLong(1, priceId);
+            q.setParameter(1, priceId);
 
             if (null != contractdump.getDscLimCd() && contractdump.getDscLimCd().equals(2))
-                stmt.setInt(2, 1);
+            	q.setParameter(2, 1);
                 //stmt.setInt(2,2);
             else if (null != contractdump.getDscLimCd() && contractdump.getDscLimCd().equals(3))
-                stmt.setInt(2, 2);
+            	q.setParameter(2, 2);
                 //stmt.setInt(2,1);
             else
-                stmt.setNull(2, Types.INTEGER);
+            	q.setParameter(2, Types.INTEGER);
 
             ///   consider
-            stmt.setDate(3, new java.sql.Date(date.getTime()));
-            stmt.setString(4, AUTOMATION_USER);
-            stmt.setString(5, AUTOMATION_USER);
-            stmt.setDate(6, new java.sql.Date(date.getTime()));
+            q.setParameter(3, new java.sql.Date(date.getTime()));
+            q.setParameter(4, AUTOMATION_USER);
+            q.setParameter(5, AUTOMATION_USER);
+            q.setParameter(6, new java.sql.Date(date.getTime()));
 
 
-            int i = stmt.executeUpdate();
-            ResultSet rs = stmt.getGeneratedKeys();
-            if (rs.next()) {
-                slabbasedId = rs.getLong(1);
-            }
+            int i = q.executeUpdate();
+            entityManager.getTransaction().commit();
+            Integer id = (Integer) q.getSingleResult();
+            slabbasedId = id.longValue();
 
-            connection.close();
             //     slabbasedId = queryService.findMaxSlabbasedPriceId();
-
+            entityManager.close();
             return slabbasedId;
-        } catch (SQLException sql) {
-            sql.printStackTrace();
-            System.exit(1);
-        } catch (ClassNotFoundException cnf) {
-            cnf.printStackTrace();
-            System.exit(1);
-        } catch (Exception e) {
+        }
+         catch (Exception e) {
             e.printStackTrace();
             System.exit(1);
         }
@@ -2830,6 +2780,7 @@ public class DatabaseService {
 
         try {
             EntityManager entityManager = JPAUtil.getEntityManagerFactory().createEntityManager();
+            
             entityManager.getTransaction().begin();
             System.out.println("Inside upsertContractData ");
             System.out.println("Begin transaction");
@@ -3231,14 +3182,14 @@ public class DatabaseService {
     @Transactional
     public void updateContractPriceProcessingDetails(String priceId, Integer processingId) {
         try {
-
-            Class.forName(PriceEngineConstants.DB_CONNECTION_DRIVER);
-            Connection connection = DriverManager.getConnection(PriceEngineConstants.DB_CONNECTION_URL, PriceEngineConstants.DB_CONNECTION_USERNAME, PriceEngineConstants.DB_CONNECTION_PASSWORD);
-            PreparedStatement stmt = connection.prepareStatement(UPDATE_CONTRACTPRICE_SQL, Statement.RETURN_GENERATED_KEYS);
-            stmt.setInt(1, processingId);
-            stmt.setLong(2, new Long(priceId));
-            int i = stmt.executeUpdate();
-            connection.close();
+        	EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+        	entityManager.getTransaction().begin();
+            Query q= entityManager.createNativeQuery(UPDATE_CONTRACTPRICE_SQL);
+            q.setParameter(1, processingId);
+            q.setParameter(2, new Long(priceId));
+            int i = q.executeUpdate();
+            entityManager.getTransaction().commit();
+            entityManager.close();
             return;
 
         } catch (Exception e) {
@@ -3261,13 +3212,13 @@ public class DatabaseService {
 
             }
             //  for(Integer priceId : priceIds) {
-            Class.forName(PriceEngineConstants.DB_CONNECTION_DRIVER);
-            Connection connection = DriverManager.getConnection(PriceEngineConstants.DB_CONNECTION_URL, PriceEngineConstants.DB_CONNECTION_USERNAME, PriceEngineConstants.DB_CONNECTION_PASSWORD);
+            EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+            entityManager.getTransaction().begin();
             String query = "update core.contractprice set priority= " + priority + " where price_id in (" + str + ")";
-            PreparedStatement stmt = connection.prepareStatement(query);
-            stmt.executeUpdate();
-            connection.close();
-
+            Query q= entityManager.createNativeQuery(query);
+            q.executeUpdate();
+            entityManager.getTransaction().commit();
+            entityManager.close();
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -3278,14 +3229,13 @@ public class DatabaseService {
     @Transactional
     public void updateContractPriceJourneyType(Integer journey, Long priceId) {
         try {
-
-            Class.forName(PriceEngineConstants.DB_CONNECTION_DRIVER);
-            Connection connection = DriverManager.getConnection(PriceEngineConstants.DB_CONNECTION_URL, PriceEngineConstants.DB_CONNECTION_USERNAME, PriceEngineConstants.DB_CONNECTION_PASSWORD);
-            String query = "update core.contractprice set appl_journey_tp_cd = " + journey + " where price_id =" + priceId;
-            PreparedStatement stmt = connection.prepareStatement(query);
-            stmt.executeUpdate();
-            connection.close();
-
+        	EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+        	entityManager.getTransaction().begin();
+        	String query = "update core.contractprice set appl_journey_tp_cd = " + journey + " where price_id =" + priceId;
+            Query q= entityManager.createNativeQuery(query);
+            q.executeUpdate();
+            entityManager.getTransaction().commit();
+            entityManager.close();
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(1);
@@ -3467,18 +3417,17 @@ public class DatabaseService {
 
     private void updateDate(ContractComponent contractComponent, String oldStartDate, String newStartDate) {
         try {
-
-            Class.forName(PriceEngineConstants.DB_CONNECTION_DRIVER);
-            Connection connection = DriverManager.getConnection(PriceEngineConstants.DB_CONNECTION_URL, PriceEngineConstants.DB_CONNECTION_USERNAME, PriceEngineConstants.DB_CONNECTION_PASSWORD);
+        	EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+        	entityManager.getTransaction().begin();
+            Query q= entityManager.createNativeQuery("update core.contractcomponent set start_Dt ='" + newStartDate + "' where start_dt = '" + oldStartDate + "'  and   contractcomponent_id =" + contractComponent.getContractComponentId());
 //            PreparedStatement stmt = connection.prepareStatement(UPDATE_CONTRACTPRICE_SQL, Statement.RETURN_GENERATED_KEYS);
 //            stmt.setInt(1,processingId);
 //            stmt.setLong(2, new Long(priceId));
 //            int i = stmt.executeUpdate();
 //            connection.close();
-
-            PreparedStatement stmt = connection.prepareStatement("update core.contractcomponent set start_Dt ='" + newStartDate + "' where start_dt = '" + oldStartDate + "'  and   contractcomponent_id =" + contractComponent.getContractComponentId(), Statement.RETURN_GENERATED_KEYS);
-            int i = stmt.executeUpdate();
-            connection.close();
+            int i = q.executeUpdate();
+            entityManager.getTransaction().commit();
+            entityManager.close();
         } catch (HibernateQueryException sqex) {
             System.out.println("######Error while upserting data in Contractdump table.");
             sqex.printStackTrace();
@@ -3672,13 +3621,14 @@ public class DatabaseService {
     @Transactional
     public void updateItemInPriceTable(Integer priceId, Integer contractPriceItemId) {
         try {
-            Class.forName(PriceEngineConstants.DB_CONNECTION_DRIVER);
-            Connection connection = DriverManager.getConnection(PriceEngineConstants.DB_CONNECTION_URL, PriceEngineConstants.DB_CONNECTION_USERNAME, PriceEngineConstants.DB_CONNECTION_PASSWORD);
-            PreparedStatement stmt = connection.prepareStatement("update core.price set item_id=? where price_id = ?");
-            stmt.setInt(1, contractPriceItemId);
-            stmt.setInt(2, priceId);
-            stmt.executeUpdate();
-            connection.close();
+        	EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+        	entityManager.getTransaction().begin();
+            Query q= entityManager.createNativeQuery("update core.price set item_id=? where price_id = ?");
+            q.setParameter(1, contractPriceItemId);
+            q.setParameter(2, priceId);
+            q.executeUpdate();
+            entityManager.getTransaction().commit();
+            entityManager.close();
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -3764,12 +3714,13 @@ public class DatabaseService {
                     str = str.substring(0, str.length() - 1);
 
             }
-            Class.forName(PriceEngineConstants.DB_CONNECTION_DRIVER);
-            Connection connection = DriverManager.getConnection(PriceEngineConstants.DB_CONNECTION_URL, PriceEngineConstants.DB_CONNECTION_USERNAME, PriceEngineConstants.DB_CONNECTION_PASSWORD);
+            EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+            entityManager.getTransaction().begin();
             String query = "update core.contractprice set appl_journey_tp_cd=3 where price_id in (" + str + ")";
-            PreparedStatement stmt = connection.prepareStatement(query);
-            stmt.executeUpdate();
-            connection.close();
+            Query q=entityManager.createNativeQuery(query);
+            q.executeUpdate();
+            entityManager.getTransaction().commit();
+            entityManager.close();
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -3791,13 +3742,13 @@ public class DatabaseService {
 
             }
             //  for(Integer priceId : priceIds) {
-            Class.forName(PriceEngineConstants.DB_CONNECTION_DRIVER);
-            Connection connection = DriverManager.getConnection(PriceEngineConstants.DB_CONNECTION_URL, PriceEngineConstants.DB_CONNECTION_USERNAME, PriceEngineConstants.DB_CONNECTION_PASSWORD);
+            EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+            entityManager.getTransaction().begin();
             String query = "delete from core.price where price_id in (" + str + ")";
-            PreparedStatement stmt = connection.prepareStatement(query);
-            stmt.executeUpdate();
-            connection.close();
-
+            Query q= entityManager.createNativeQuery(query);
+            q.executeUpdate();
+            entityManager.getTransaction().commit();
+            entityManager.close();
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(1);
@@ -3812,13 +3763,13 @@ public class DatabaseService {
             String str = priceIds.toString();
 
             //  for(Integer priceId : priceIds) {
-            Class.forName(PriceEngineConstants.DB_CONNECTION_DRIVER);
-            Connection connection = DriverManager.getConnection(PriceEngineConstants.DB_CONNECTION_URL, PriceEngineConstants.DB_CONNECTION_USERNAME, PriceEngineConstants.DB_CONNECTION_PASSWORD);
+            EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+            entityManager.getTransaction().begin();
             String query = "delete from core.price where price_id =" + str;
-            PreparedStatement stmt = connection.prepareStatement(query);
-            stmt.executeUpdate();
-            connection.close();
-
+            Query q=entityManager.createNativeQuery(query);
+            q.executeUpdate();
+            entityManager.getTransaction().commit();
+            entityManager.close();
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(1);
@@ -3840,12 +3791,14 @@ public class DatabaseService {
 
             }
             //  for(Integer priceId : priceIds) {
-            Class.forName(PriceEngineConstants.DB_CONNECTION_DRIVER);
-            Connection connection = DriverManager.getConnection(PriceEngineConstants.DB_CONNECTION_URL, PriceEngineConstants.DB_CONNECTION_USERNAME, PriceEngineConstants.DB_CONNECTION_PASSWORD);
+            EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+            entityManager.getTransaction().begin();
             String query = "delete from core.price where price_id in (" + str + ")";
-            PreparedStatement stmt = connection.prepareStatement(query);
-            stmt.executeUpdate();
-            connection.close();
+            Query q=entityManager.createNativeQuery(query);
+            
+            q.executeUpdate();
+            entityManager.getTransaction().commit();
+            entityManager.close();
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -4319,13 +4272,13 @@ public class DatabaseService {
     public void updateDeltaAgreementDuplicate(Contractdump contractdump, Deltacontractdump deltacontractdump) {
         try {
             String remark = "" + contractdump.getId();
-            Class.forName(PriceEngineConstants.DB_CONNECTION_DRIVER);
-            Connection connection = DriverManager.getConnection(PriceEngineConstants.DB_CONNECTION_URL, PriceEngineConstants.DB_CONNECTION_USERNAME, PriceEngineConstants.DB_CONNECTION_PASSWORD);
+            EntityManager entityManager=JPAUtil.getEntityManagerFactory().createEntityManager();
+            entityManager.getTransaction().begin();
             String query = "update core.deltacontractdump set remark=" + remark + " where customer_number = '" + deltacontractdump.getCustomerNumber() + "' and  prodno = " + deltacontractdump.getProdNo();
-            PreparedStatement stmt = connection.prepareStatement(query);
-            stmt.executeUpdate();
-            connection.close();
-
+            Query q=entityManager.createNativeQuery(query);
+            q.executeUpdate();
+            entityManager.getTransaction().commit();
+            entityManager.close();
         } catch (Exception e) {
             e.printStackTrace();
             System.exit(1);
@@ -4384,10 +4337,10 @@ public class DatabaseService {
                             String startDt = sdf.format(startDate);
                             String endDt = sdf.format(endDate);
 
-                                String key = cp.getContractcomponentId() + "_" + cp.getItemIdDup() +"_"+"_" +endDt+"_"+ // "_" +endDt+"_"+ // price.getBasePrice()+"_"+
+                                String key = cp.getContractcomponentId() + "_" + cp.getItemIdDup() +"_" + // +endDt+"_"+ // "_" +endDt+"_"+ // price.getBasePrice()+"_"+
                                         cp.getFromCountry() + "_" + cp.getFromPostalCode() + "_" + cp.getToCountryZoneCountFrom() + "_" +
                                         cp.getToCountry() + "_" + cp.getToPostcalCode() + "_" + cp.getToCountryZoneCountTo() + "_" +
-                                        cp.getZoneId() + "_" + cp.getFromRouteId() + "_" + cp.getToRouteId() ; // + "_" + cp.getApplJourneyTpCd();
+                                        cp.getZoneId() + "_" + cp.getFromRouteId() + "_" + cp.getToRouteId() + "_" + cp.getApplJourneyTpCd();
                                 //if (validateMap.containsKey(key+"_1")) {
                                 if(validateMap.containsKey(key)){
                                     validateMap.get(key).add(cp.getPriceId());
@@ -4415,10 +4368,10 @@ public class DatabaseService {
                 ArrayList<Long> prices = validateMap.get(key);
                 if(prices.size()==2){
                     Collections.sort(prices);
-                    ArrayList<Long> removePrice = new ArrayList<Long>();
-                    removePrice.add(prices.get(0));
-                    deletePrices(removePrice);
-             //       updatePriceEndDate(prices.get(0), prices.get(1));
+//                    ArrayList<Long> removePrice = new ArrayList<Long>();
+//                    removePrice.add(prices.get(0));
+             //       deletePrices(removePrice);
+                    updatePriceEndDate(prices.get(0), prices.get(1));
 //                    if(findOverlapCases(prices.get(0), prices.get(1))){
 //                        validateMap2.put(key, prices);
 //                    }
@@ -4714,8 +4667,6 @@ public class DatabaseService {
             deletePrice(oldPirce);
         }
     }
-  
-	
 
 }
 

@@ -13,6 +13,8 @@ public class PercentagebasedDeltaService {
 
     private DatabaseService databaseService = new DatabaseService();
     private DeltaServiceImpl deltaServiceImpl = new DeltaServiceImpl();
+    private DeltaRecordValidation deltaRecordValidation = new DeltaRecordValidation();
+
     private QueryService queryService = new QueryService();
     private final String NEW_CUSTOMER = "New Customer";
     private final String CUSTOMER_WITHOUT_DISCOUNT_LINE = "Customer without discount line";
@@ -25,13 +27,6 @@ public class PercentagebasedDeltaService {
     private final String RECORD_ALREADY_EXIST = "Already exist";
     private final String ITEM_ID_NOT_CONFIGURED = "Item not configured in PEDB";
 
-
-    private final String NO_CHANGE_IN_PARTY = "No change in Party";
-    private final String PARENT_IS_NOW_CHILD = "Parent is now a child";
-    private final String CHILD_IS_NOW_PARENT = "Child is now a parent";
-    private final String INDEPENDENT_IS_NOW_CHILD = "Previously independent now child";
-    private final String INDEPENDENT_IS_NOW_PARENT = "Previously independent now parent";
-
     public void processDeltaAgreements(String filecountry, Logger logger) throws ParseException {
 
         ArrayList<Percentagebaseddump> newContractdumps = new ArrayList<Percentagebaseddump>();
@@ -42,33 +37,12 @@ public class PercentagebasedDeltaService {
         ArrayList<Long> contractPricesToUpdateJourney2 = new ArrayList<Long>();
 
         HashMap<Long, ArrayList<Percentagebaseddeltadump>> contractPricesBothJourneyMap = new HashMap<Long, ArrayList<Percentagebaseddeltadump>>();
-        List<Percentagebaseddeltadump> deltalist = queryService.findAllPercentbasedDeltaContractdumpsWithJDBC(filecountry,logger);
+        HashSet<Percentagebaseddeltadump> deltalist = queryService.findAllPercentbasedDeltaContractdumpsWithJDBC(filecountry,logger);
         if (null != deltalist && !deltalist.isEmpty()) {
             HashMap<String, Set<String>> organizationMap = filterOrgnizationAndCustomers(deltalist);
             if (!organizationMap.isEmpty()) {
-                int counter = 0;
-                for (String organizationDetails : organizationMap.keySet()) {
-                    if (counter == 0) {
-                        List<Percentagebaseddeltadump> dumps = new ArrayList<Percentagebaseddeltadump>();
-                        if (checkPartyStatus(organizationDetails.split("~")[0], "PARENT").equals(PARENT_IS_NOW_CHILD)) {
-                            dumps = queryService.findAllPercentbasedDeltaContractdumpsWithJDBC(filecountry, organizationDetails.split("~")[0],logger);
-                            //     newContractdumps.addAll(deltaToContractdumpsPercent(dumps));
-                            databaseService.updateDeltaAgreementsPERCENTUsingJDBC(dumps, CHILD_IS_NOW_PARENT, false, logger);
-                        }
-                        counter++;
-                    }
-                    Set<String> customersList = organizationMap.get(organizationDetails);
-                    for (String customerDetails : customersList) {
-                        List<Percentagebaseddeltadump> dumps = new ArrayList<Percentagebaseddeltadump>();
-                        if (checkPartyStatus(organizationDetails.split("~")[0], "CHILD").equals(CHILD_IS_NOW_PARENT)) {
-                            dumps = queryService.findAllPercentbasedDeltaContractdumpsWithJDBC(filecountry, organizationDetails.split("~")[0], logger);
-                            //  newContractdumps.addAll(deltaToContractdumpsPercent(dumps));
-                            databaseService.updateDeltaAgreementsPERCENTUsingJDBC(dumps, CHILD_IS_NOW_PARENT, false, logger);
-                        }
-                    }
-                }
+                deltaRecordValidation.validateCustomerStatusPercent(organizationMap, filecountry, logger, true);
             }
-
             deltalist = queryService.findAllPercentbasedDeltaContractdumpsWithJDBC(filecountry,logger);
             ArrayList<Percentagebaseddeltadump> newOrganization = new ArrayList<Percentagebaseddeltadump>();
             for (Percentagebaseddeltadump percentagebaseddeltadump : deltalist) {
@@ -276,29 +250,23 @@ public class PercentagebasedDeltaService {
         return  percentagebaseddump;
     }
 
-    private static HashMap<String, Set<String>> filterOrgnizationAndCustomers(List<Percentagebaseddeltadump> contractdumps) {
+    private static HashMap<String, Set<String>> filterOrgnizationAndCustomers(HashSet<Percentagebaseddeltadump> contractdumps) {
         HashMap<String, Set<String>> orgMap = new HashMap<String, Set<String>>();
         if (!contractdumps.isEmpty()) {
             for (Percentagebaseddeltadump contractdump : contractdumps) {
                 if (contractdump.getParentCustomerNumber().equals(contractdump.getCustomerNumber())){
-                    if (!orgMap.containsKey(contractdump.getParentCustomerNumber() + "~" + contractdump.getParentCustomerName())) {
+                    if (!orgMap.containsKey(contractdump.getParentCustomerNumber())) {
                         Set<String> customerList = new HashSet<String>();
-                        //     customerList.add(contractdump.getCustomerNumber() + "~" + contractdump.getCustomerName());
-                        customerList.add(null);
-                        orgMap.put(contractdump.getParentCustomerNumber() + "~" + contractdump.getParentCustomerName(), customerList);
+                        orgMap.put(contractdump.getParentCustomerNumber(), customerList);
                     }
-//                    else {
-//                        if (!orgMap.get(contractdump.getParentCustomerNumber() + "~" + contractdump.getParentCustomerName()).contains(contractdump.getCustomerNumber() + "~" + contractdump.getCustomerName()))
-//                            orgMap.get(contractdump.getParentCustomerNumber() + "~" + contractdump.getParentCustomerName()).add(contractdump.getCustomerNumber() + "~" + contractdump.getCustomerName());
-//                    }
                 } else {
-                    if (orgMap.containsKey(contractdump.getParentCustomerNumber() + "~" + contractdump.getParentCustomerName())) {
-                        if (!orgMap.get(contractdump.getParentCustomerNumber() + "~" + contractdump.getParentCustomerName()).contains(contractdump.getCustomerNumber() + "~" + contractdump.getCustomerName()))
-                            orgMap.get(contractdump.getParentCustomerNumber() + "~" + contractdump.getParentCustomerName()).add(contractdump.getCustomerNumber() + "~" + contractdump.getCustomerName());
+                    if (orgMap.containsKey(contractdump.getParentCustomerNumber())) {
+                        if (!orgMap.get(contractdump.getParentCustomerNumber()).contains(contractdump.getCustomerNumber()))
+                            orgMap.get(contractdump.getParentCustomerNumber()).add(contractdump.getCustomerNumber());
                     } else {
                         Set<String> customerList = new HashSet<String>();
-                        customerList.add(contractdump.getCustomerNumber() + "~" + contractdump.getCustomerName());
-                        orgMap.put(contractdump.getParentCustomerNumber() + "~" + contractdump.getParentCustomerName(), customerList);
+                        customerList.add(contractdump.getCustomerNumber());
+                        orgMap.put(contractdump.getParentCustomerNumber(), customerList);
                     }
                 }
             }
@@ -306,27 +274,7 @@ public class PercentagebasedDeltaService {
         return orgMap;
     }
 
-    private String checkPartyStatus(String customerNumber, String type){
 
-        Party childParty = null;
-        Party parentParty = null;
-        String status = NO_CHANGE_IN_PARTY;
-        // Check child TO Parent
-        if(type.equals("CHILD")){
-            childParty = queryService.findChildPartyBySSPK(customerNumber);
-            if(null!=childParty)
-                return CHILD_IS_NOW_PARENT;
-        }
-        // check parent to child
-        if(type.equals("PARENT")){
-            parentParty = queryService.findParentParty(customerNumber);
-            if(null!=parentParty)
-                return CHILD_IS_NOW_PARENT;
-        }
-        // CHECK Independent is now child
-
-        return NO_CHANGE_IN_PARTY;
-    }
 
     private Percentagebaseddump deltaToPercentBasedsContractdump(Percentagebaseddeltadump deltacontractdump){
         Percentagebaseddump contractdump = new Percentagebaseddump();

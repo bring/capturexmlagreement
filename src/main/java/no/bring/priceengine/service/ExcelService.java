@@ -94,6 +94,7 @@ public class ExcelService {
                     // Uncomment only if new organization and customers identified
                     // Uncomment only if new organization and customers identified
                     // Uncomment only if new organization and customers identified
+                    // fIRST TIME ENTRY OF NEW CUSTOMERS-
                     databaseService.upsertPartyDetailsNEW(partyMap);
 
                             ArrayList<String>  organizationList = queryService.filterOrganizations(partyMap.keySet());

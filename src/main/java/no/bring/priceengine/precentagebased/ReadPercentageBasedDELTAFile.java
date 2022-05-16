@@ -137,6 +137,7 @@ public class ReadPercentageBasedDELTAFile {
                                     String price = currentCell.getStringCellValue();
                                     if(price.contains(","))
                                         price = price.replace(",",".");
+                                    if(price.contains("-"))
                                     price = price.replace("-","");
                                     model.setPrecentageDiscount(new Double(price).toString());
                                 }

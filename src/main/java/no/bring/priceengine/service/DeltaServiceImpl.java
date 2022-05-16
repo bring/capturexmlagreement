@@ -37,10 +37,8 @@ public class DeltaServiceImpl {
     }
 
     public Boolean isNotOverlapDates(ContractPrice contractPrice, Deltacontractdump contractdump) throws ParseException{
-        Price price = queryService.findPrice(contractPrice);
-//        LocalDate newStartDate = contractdump.getFromDate().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
-//        LocalDate newEndDate = contractdump.getToDate().toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
 
+        Price price = queryService.findPrice(contractPrice);
         Date startDate = Date.from(price.getStartDt().atStartOfDay(ZoneId.systemDefault()).toInstant());
         Date endDate = Date.from(price.getEndDt().atStartOfDay(ZoneId.systemDefault()).toInstant());
         Date newStartDate = contractdump.getFromDate();
@@ -59,16 +57,16 @@ public class DeltaServiceImpl {
             return false;
     }
 
-    public Boolean isNotOverlapWithSameDates(ContractPrice contractPrice, Deltacontractdump contractdump) throws ParseException{
+    public Boolean isOverlapWithSameDates(ContractPrice contractPrice, Deltacontractdump contractdump) throws ParseException{
         Price price = queryService.findPrice(contractPrice);
         Date startDate = Date.from(price.getStartDt().atStartOfDay(ZoneId.systemDefault()).toInstant());
         Date endDate = Date.from(price.getEndDt().atStartOfDay(ZoneId.systemDefault()).toInstant());
         Date newStartDate = contractdump.getFromDate();
         Date newEndDate = contractdump.getToDate();
             if(newEndDate.compareTo(endDate)==0  && newStartDate.compareTo(startDate)==0)
-            return false;
-        else
             return true;
+        else
+            return false;
     }
 
     public Boolean isNotOverlapWithSameDatesPERCENT(ContractPrice contractPrice, Percentagebaseddeltadump contractdump) throws ParseException{
@@ -86,21 +84,43 @@ public class DeltaServiceImpl {
     }
 
     public Boolean isSamePrice(ContractPrice contractPrice, Deltacontractdump deltacontractdump) throws ParseException {
-        Price price = queryService.findPrice(contractPrice);
-        if(null!= price){
-            if(null!= price.getBasePrice()){
-                if(deltacontractdump.getBasePrice().equals(Double.valueOf(String.valueOf(price.getBasePrice()))) &&
-                        null== deltacontractdump.getDscLimCd()) {
+
+       Price price = queryService.findPrice(contractPrice);
+                if(price.getPriceDefTpCd().equals(new Long(1)) && null!=deltacontractdump.getBasePrice() &&
+                        deltacontractdump.getBasePrice().equals(Double.valueOf(String.valueOf(price.getBasePrice()))) &&
+                        null!= deltacontractdump.getDscLimCd() && deltacontractdump.getDscLimCd().equals("null")) {
                     deltacontractdump.setPriceId(contractPrice.getPriceId().intValue());
                     return true;
+                }else if(deltacontractdump.getDiscLmtFrom()!=null && deltacontractdump.getDiscLmtFrom().equals(new Double(-1))
+                && price.getPriceDefTpCd().equals(new Long(6))){
+                    deltacontractdump.setRemark("PRICE TYPE CHANGED FROM SLAB TO FIXED");
+                    deltacontractdump.setPriceId(price.getPriceId().intValue());
+                    return false;
+                }else if(price.getPriceDefTpCd().equals(new Long(6)) && !deltacontractdump.getDiscLmtFrom().equals(new Double(-1))){
+                    SlabBasedPrice slabBasedPrice = queryService.findSlabbasedPrice(price);
+                    if(slabBasedPrice!=null && slabBasedPrice.getSlabBasedPriceId()!=null) {
+                        Boolean result = false;
+                        List<SlabBasedPriceEntry> slabs = queryService.findSlabbasedPriceEntry(slabBasedPrice.getSlabBasedPriceId());
+                        for (SlabBasedPriceEntry slab : slabs) {
+                            if (slab.getPriceValue().equals(new BigDecimal(deltacontractdump.getPrice()))) {
+                                result = true;
+                                return true;
+                            }
+                        }
+                        return false;
+                    }else{
+                        System.out.println("Some data issue occures --  deltacontractdump - " + deltacontractdump.getOrganizationNumber() + "  :: customer "+ deltacontractdump.getCustomerNumber() +"  :: prodno " + deltacontractdump.getProdNo());
+                    }
+
                 }
+            else if(price.getPriceDefTpCd().equals(new Long(1)) && deltacontractdump.getDiscLmtFrom()!=null && !deltacontractdump.getDiscLmtFrom().equals(new Double(-1))){
+                deltacontractdump.setRemark("PRICE TYPE CHANGED FROM FIXED TO SLAB");
+                return false;
             }else{
                 deltacontractdump.setPriceId(contractPrice.getPriceId().intValue());
                 return false;
             }
-        }else
             return false;
-        return false;
     }
 
     public Boolean isSamePricePERCENT(ContractPrice contractPrice, Percentagebaseddeltadump deltacontractdump) throws ParseException {

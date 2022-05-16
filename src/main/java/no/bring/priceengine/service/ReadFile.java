@@ -418,22 +418,17 @@ public class ReadFile {
 
                     if (currentRow.getRowNum() == 0)
                         currentRow = rows.next();
-                    //    System.out.println(currentRow.getRowNum()+"...new row num");
                     Deltacontractdump deltaModel = new Deltacontractdump();
                     //    System.out.println("color ################################## "+ currentRow.getCell(3).getCellStyle().getFillBackgroundColorColor());
                     Iterator<Cell> cellsInRow = currentRow.iterator();
                     while (cellsInRow.hasNext()) {
 
                         Cell currentCell = cellsInRow.next();
-                        //    System.out.println("cell value..."+currentCell.getColumnIndex());
                         switch (currentCell.getColumnIndex()) {
                             case 0:
                                 //model.setId((int)currentCell.getNumericCellValue());
                                 break;
                             case 1:
-//                                Double organizationNumber = currentCell.getNumericCellValue();
-//                                Long longOrgNumber = organizationNumber.longValue();
-//                                model.setOrganizationNumber(longOrgNumber.toString());
                                 if (currentCell.getCellType().equals(CellType.NUMERIC)) {
                                     Long lo = (new Double(currentCell.getNumericCellValue())).longValue();
                                     deltaModel.setOrganizationNumber(lo.toString());
@@ -457,7 +452,6 @@ public class ReadFile {
                                 }
                                 break;
                             case 4:
-                                // model.setArtikelgrupp(Integer.parseInt(currentCell.getStringCellValue()));
                                 deltaModel.setCustomerName(currentCell.getStringCellValue());
                                 break;
                             case 5:
@@ -471,13 +465,6 @@ public class ReadFile {
                                 break;
                             case 6:
                                 Double artGroup = new Double(9999);
-//                                if (currentCell.getCellType().equals(CellType.STRING)) {
-//                                    artGroup = new Double(currentCell.getStringCellValue());
-//                                } else if (currentCell.getCellType().equals(CellType.NUMERIC)) {
-//                                    artGroup = currentCell.getNumericCellValue();
-//                                }
-//                                if (null != artGroup)
-//                                    deltaModel.setArtikelgrupp(artGroup.intValue());
                                 break;
                             case 7:
                                 deltaModel.setStatGrupp("9999");
@@ -564,9 +551,6 @@ public class ReadFile {
                                     deltaModel.setDiscLmtFrom(new Double(currentCell.getStringCellValue() == null ? "-1" : currentCell.getStringCellValue()));
                                 }
                                 break;
-//                            case 22:
-//                                if(((Double)currentCell.getNumericCellValue())!=null)
-                                   // deltaModel.setPrice(currentCell.getNumericCellValue());
                             case 22:
                                 if (currentCell.getCellType().equals(CellType.STRING) && currentCell.getStringCellValue() != "") {
                                     String price = currentCell.getStringCellValue();
@@ -574,16 +558,12 @@ public class ReadFile {
                                 } else if (currentCell.getCellType().equals(CellType.NUMERIC))
                                     deltaModel.setPrice(currentCell.getNumericCellValue());
                                 break;
-//                            case 22:
-//                                if(((Double)currentCell.getNumericCellValue())!=null)
-//                                model.setADsc(currentCell.getNumericCellValue());
 
                         }
                     }
                     deltaModel.setUpdated(false);
                     deltaModel.setFileCountry(country);
                     deltaModel.setEnabled(true);
-                    deltaModel.setCreateddate(new Date());
                     deltaModel.setCreateddate(new Date());
                     deltacontractdumps.add(deltaModel);
 
@@ -739,9 +719,6 @@ public class ReadFile {
                                 //model.setId((int)currentCell.getNumericCellValue());
                                 break;
                             case 1:
-//                                Double organizationNumber = currentCell.getNumericCellValue();
-//                                Long longOrgNumber = organizationNumber.longValue();
-//                                model.setOrganizationNumber(longOrgNumber.toString());
                                 System.out.println("cell type not matched ::: ROW " + currentCell.getAddress().getRow() + "  :::: COLUMN :" + currentCell.getAddress().getColumn());
                                 if (currentCell.getCellType().equals(CellType.STRING)) {
                                     deltaModel.setOrganizationNumber(currentCell.getStringCellValue());
@@ -764,7 +741,6 @@ public class ReadFile {
                                 }
                                 break;
                             case 4:
-                                // model.setArtikelgrupp(Integer.parseInt(currentCell.getStringCellValue()));
                                 deltaModel.setCustomerName(currentCell.getStringCellValue());
                                 break;
                             case 5:
@@ -847,7 +823,7 @@ public class ReadFile {
                                     deltaModel.setToDate(currentCell.getDateCellValue());
                                 break;
                             case 15:
-                                deltaModel.setBasePrice(currentCell.getNumericCellValue());
+                                    deltaModel.setBasePrice(currentCell.getNumericCellValue());
                                 break;
                             case 16:
                                 deltaModel.setCurr(currentCell.getStringCellValue());

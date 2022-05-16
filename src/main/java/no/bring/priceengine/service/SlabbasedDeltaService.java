@@ -24,213 +24,95 @@ import java.util.stream.Collectors;
 
 public class SlabbasedDeltaService {
 
+    private DeltaRecordValidation deltaRecordValidation = new DeltaRecordValidation();
     private final String NEW_CUSTOMER = "New Customer";
-
+    private final String NEW_PARENT_CUSTOMER = "New Parent Customer";
+    private final String NEW_CHILD_CUSTOMER = "New Child Customer";
     private final String CUSTOMER_WITHOUT_DISCOUNT_LINE = "Customer without discount line";
-
+    private final String CUSTOMER_IN_PARTY_NOT_IN_PE_CONTRACTS = "Customer in party but not in contract tables";
     private final String NEW_SERVICE = "New Service";
-
     private final String NEW_ROUTES = "New Routes";
-
     private final String NEW_DATES = "New Dates";
-
     private final String OVERLAP_WITH_EXISTING_DATES = "Overlap with anyone of dates";
-
     private final String OVERLAP_WITH_BOTH_DATES = "Overlap with both start-end dates";
-
     private final String NEW_PRICES = "New Prices";
-
     private final String RECORD_ALREADY_EXIST = "Already exist";
-
     private final String ITEM_ID_NOT_CONFIGURED = "Item not configured in PEDB";
-
     private final String NO_CHANGE_IN_PARTY = "No change in Party";
-
     private final String PARENT_IS_NOW_CHILD = "Parent is now a child";
-
     private final String CHILD_IS_NOW_PARENT = "Child is now a parent";
-
     private final String INDEPENDENT_IS_NOW_CHILD = "Previously independent now child";
-
     private final String INDEPENDENT_IS_NOW_PARENT = "Previously independent now parent";
-
     private final DatabaseService databaseService = new DatabaseService();
-
     private final QueryService queryService = new QueryService();
-
     private final ExcelService excelService = new ExcelService();
-
     private final DeltaServiceImpl deltaServiceImpl = new DeltaServiceImpl();
 
-    //private static final String
-
-
-
-    private static HashMap<String, Set<String>> filterOrgnizationAndCustomers(List<Deltacontractdump> contractdumps) {
-
+    private static HashMap<String, Set<String>> filterOrgnizationAndCustomers(HashSet<Deltacontractdump> contractdumps) {
         HashMap<String, Set<String>> orgMap = new HashMap<String, Set<String>>();
-
         if (!contractdumps.isEmpty()) {
-
             for (Deltacontractdump contractdump : contractdumps) {
-
                 if (contractdump.getOrganizationNumber().equals(contractdump.getCustomerNumber())) {
-
-                    if (!orgMap.containsKey(contractdump.getOrganizationNumber() + "~" + contractdump.getOrganizationName())) {
-
+                    if (!orgMap.containsKey(contractdump.getOrganizationNumber())) {
                         Set<String> customerList = new HashSet<String>();
-
-                        //customerList.add(contractdump.getCustomerNumber() + "~" + contractdump.getCustomerName());
-
-                        customerList.add(null);
-
-                        orgMap.put(contractdump.getOrganizationNumber() + "~" + contractdump.getOrganizationName(), customerList);
-
+                        orgMap.put(contractdump.getOrganizationNumber(), customerList);
                     }
-
-//                    else {
-
-//                        if (!orgMap.get(contractdump.getOrganizationNumber() + "~" + contractdump.getOrganizationName()).contains(contractdump.getCustomerNumber() + "~" + contractdump.getCustomerName()))
-
-//                            orgMap.get(contractdump.getOrganizationNumber() + "~" + contractdump.getOrganizationName()).add(contractdump.getCustomerNumber() + "~" + contractdump.getCustomerName());
-
-//                    }
-
                 } else {
-
-                    if (orgMap.containsKey(contractdump.getOrganizationNumber() + "~" + contractdump.getOrganizationName())) {
-
-
-
-                        if (!orgMap.get(contractdump.getOrganizationNumber() + "~" + contractdump.getOrganizationName()).contains(contractdump.getCustomerNumber() + "~" + contractdump.getCustomerName())) {
-
-                            orgMap.get(contractdump.getOrganizationNumber() + "~" + contractdump.getOrganizationName()).add(contractdump.getCustomerNumber() + "~" + contractdump.getCustomerName());
-
-                            orgMap.get(contractdump.getOrganizationNumber() + "~" + contractdump.getOrganizationName()).remove(null);
-
+                    if (orgMap.containsKey(contractdump.getOrganizationNumber())) {
+                        if (!orgMap.get(contractdump.getOrganizationNumber()).contains(contractdump.getCustomerNumber())) {
+                            orgMap.get(contractdump.getOrganizationNumber()).add(contractdump.getCustomerNumber());
                         }
-
                     } else {
-
                         Set<String> customerList = new HashSet<String>();
-
-                        customerList.add(contractdump.getCustomerNumber() + "~" + contractdump.getCustomerName());
-
-                        orgMap.put(contractdump.getOrganizationNumber() + "~" + contractdump.getOrganizationName(), customerList);
-
+                        customerList.add(contractdump.getCustomerNumber());
+                        orgMap.put(contractdump.getOrganizationNumber(), customerList);
                     }
-
                 }
-
             }
-
         }
-
         return orgMap;
-
     }
-
-
 
     public void processDeltaAgreements(String filecountry, Logger logger) throws ParseException {
 
-        Set<Contractdump> newContractdumps = new HashSet<Contractdump>();
+        HashSet<Contractdump> newContractdumps = new HashSet<Contractdump>();
         Set<Deltacontractdump> deltacontractdumpsToUpload = new HashSet<Deltacontractdump>();
-        Map<String, ArrayList<String>> ogranizationMap = new HashMap<String, ArrayList<String>>();
-        ArrayList<Integer> priceIdToUpdatelist = new ArrayList<Integer>();
         ArrayList<Long> contractPricesToDelete = new ArrayList<Long>();
         ArrayList<Long> contractPricesToUpdateJourney1 = new ArrayList<Long>();
         ArrayList<Long> contractPricesToUpdateJourney2 = new ArrayList<Long>();
-        ArrayList<Long> deltacontractdumpNewRoutesId = new ArrayList<Long>();
-        Set<String> CHILD_IS_NOW_PARENT_SET = new HashSet<String>();
-        Set<String> PARENT_IS_NOW_CHILD_SET = new HashSet<String>();
 
         HashMap<Long, ArrayList<Deltacontractdump>> contractPricesBothJourneyMap = new HashMap<Long, ArrayList<Deltacontractdump>>();
-        List<Deltacontractdump> deltacontractdumps = queryService.findAllDeltaContractdumpsWithJDBC(filecountry, logger);
+        HashSet<Deltacontractdump> deltacontractdumps = queryService.findAllDeltaContractdumpsWithJDBC(filecountry, null, logger, false);
         if (null != deltacontractdumps && !deltacontractdumps.isEmpty()) {
-            if (!deltacontractdumps.isEmpty()) {
-                HashMap<String, Set<String>> organizationMap = filterOrgnizationAndCustomers(deltacontractdumps);
-                if (!organizationMap.isEmpty()) {
-                    int counter = 0;
-                    for (String organizationDetails : organizationMap.keySet()) {
-                        if (counter == 0) {
-                            ArrayList<Deltacontractdump> dumps = new ArrayList<Deltacontractdump>();
-                            if (checkPartyStatus(organizationDetails.split("~")[0], "PARENT").equals(PARENT_IS_NOW_CHILD)) {
-                            //    dumps = queryService.findAllDeltaContractdumpsByOrganization(filecountry, organizationDetails.split("~")[0]);
-                                databaseService.updateDeltaContractDumpUsingJDBC(dumps, CHILD_IS_NOW_PARENT, true, logger);
-                                PARENT_IS_NOW_CHILD_SET.add(organizationDetails.split("~")[0]);
-                            }
-                            counter++;
-                        }
-                        Set<String> customersList = organizationMap.get(organizationDetails);
-                        for (String customerDetails : customersList) {
-                           ArrayList<Deltacontractdump> dumps = new ArrayList<Deltacontractdump>();
-                            if (checkPartyStatus(organizationDetails.split("~")[0], "CHILD").equals(CHILD_IS_NOW_PARENT)) {
-                            //    dumps = queryService.findAllDeltaContractdumpsByCustomer(filecountry, organizationDetails.split("~")[0]);
-                           //     databaseService.updateDeltaAgreements(dumps, CHILD_IS_NOW_PARENT, false);
-                                CHILD_IS_NOW_PARENT_SET.add(organizationDetails.split("~")[0]);
-                                databaseService.updateDeltaContractDumpUsingJDBC(dumps, CHILD_IS_NOW_PARENT, true, logger);
-                            }
-                        }
-                    }
-                }
-            }
-            if(!PARENT_IS_NOW_CHILD_SET.isEmpty()){
-                String disable="";
-                for(String str : PARENT_IS_NOW_CHILD_SET){
-                    disable = disable +"'"+ str + "', ";
-                }
-            }
-            if(!CHILD_IS_NOW_PARENT_SET.isEmpty()){
-                String disable="";
-                for(String str : PARENT_IS_NOW_CHILD_SET){
-                    disable = disable +"'"+ str + "', ";
-                }
-            }
+            HashMap<String, Set<String>> organizationMap = filterOrgnizationAndCustomers(deltacontractdumps);
+            // All the discount lines, where customer'sstatus has changed will be processed in below method.
+            // We will update the status and review and ask customer to validate before proceed.
+            deltaRecordValidation.validateCustomerStatus(organizationMap, filecountry, logger, false);
 
-            deltacontractdumps = queryService.findAllDeltaContractdumpsWithJDBC(filecountry, logger);
-
-            ArrayList<Deltacontractdump> newOrganization = new ArrayList<Deltacontractdump>();
+            // Re call the method for remaining discount lines.
+            deltacontractdumps = queryService.findAllDeltaContractdumpsWithJDBC(filecountry, null, logger, false);
+            // change for discount line
             for (Deltacontractdump deltacontractdump : deltacontractdumps) {
-                if (null == queryService.findPartyByParentSSPK(deltacontractdump.getOrganizationNumber()))
-                    newOrganization.add(deltacontractdump);
-            }
-            if (!newOrganization.isEmpty()) {
-//                databaseService.updateDeltaAgreementsss(newOrganization, NEW_CUSTOMER, true);
-                databaseService.updateDeltaContractDumpUsingJDBC(newOrganization, NEW_CUSTOMER, true, logger);
-                deltacontractdumpsToUpload.addAll(newOrganization);
-              //  newContractdumps.addAll(deltaToContractdumps(newOrganization));
-            }
-// WORK FROM HERER
-            deltacontractdumps = queryService.findAllDeltaContractdumpsWithJDBC(filecountry, logger);
-
-           // change for discount line
-            for (Deltacontractdump deltacontractdump : deltacontractdumps) {
-                    int insertedMissingRole = 0;
-                int isInserted = 0;
+                Party childParty = queryService.findChildPartyBySSPK(deltacontractdump.getCustomerNumber());
+                if (null != childParty){
                 ContractRole contractRole = queryService.findCustomerInContractRoleAllType(deltacontractdump.getOrganizationNumber());
-                if (null == contractRole) {
-                  //  newContractdumps.add(deltaToContractdump(deltacontractdump));
+                ContractRole childContractRole = queryService.findCustomerInContractRoleAllType(deltacontractdump.getCustomerNumber());
+                if (null == contractRole || null == childContractRole) {
                     deltacontractdumpsToUpload.add(deltacontractdump);
-                    databaseService.updateDeltaContractDump(deltacontractdump, CUSTOMER_WITHOUT_DISCOUNT_LINE, true,logger);
-                    isInserted++;
-                    if(isInserted>1)
-                        System.out.println("wait");
-                    //databaseService.updateDeltaContractDump()
+                    databaseService.updateDeltaContractDump(deltacontractdump, CUSTOMER_IN_PARTY_NOT_IN_PE_CONTRACTS, true, logger);
                 } else {
                     Item item = queryService.getItem(deltacontractdump.getProdNo());
                     if (null != item) {
                         Item itemInCP = item;
-                        if( item.getSourceSystemRecordPk().toString().length()==5 && item.getSourceSystemRecordPk().toString().endsWith("64")) {
+                        if (item.getSourceSystemRecordPk().toString().length() == 5 && item.getSourceSystemRecordPk().toString().endsWith("64")) {
                             itemInCP = queryService.getItem(Integer.parseInt(item.getSourceSystemRecordPk().toString().substring(0, 3)));
-                        } else if( item.getSourceSystemRecordPk().toString().length()==7 && item.getSourceSystemRecordPk().toString().endsWith("64")) {
+                        } else if (item.getSourceSystemRecordPk().toString().length() == 7 && item.getSourceSystemRecordPk().toString().endsWith("64")) {
                             itemInCP = queryService.getItem(Integer.parseInt(item.getSourceSystemRecordPk().toString().substring(0, 5)));
                         }
                         List<ContractPrice> contractPrices = queryService.findContractPriceByComponentID(contractRole.getContractComponent().getContractComponentId(), itemInCP.getItemId());
                         if (contractPrices != null && !contractPrices.isEmpty()) {
                             // CHECK ITEM
                             ArrayList<Integer> existinsItems = new ArrayList<Integer>();
-                            //for(ContractPrice cp : contractPrices){
                             Iterator iter = contractPrices.iterator();
                             while (iter.hasNext()) {
                                 ContractPrice cp = (ContractPrice) iter.next();
@@ -241,14 +123,11 @@ public class SlabbasedDeltaService {
                             }
 
                             if (!existinsItems.contains(itemInCP.getItemId().intValue())) {
-                                //newContractdumps.add(deltaToContractdump(deltacontractdump));
                                 deltacontractdumpsToUpload.add(deltacontractdump);
-                                databaseService.updateSingleDeltaContractDumpUsingJDBC(deltacontractdump,NEW_SERVICE, true, logger);
-                                isInserted++;
-                                if(isInserted>1)
-                                    System.out.println("wait");
-                            }
+                                databaseService.updateSingleDeltaContractDumpUsingJDBC(deltacontractdump, NEW_SERVICE, true, logger);
+                                }
                             // CHECK ROUTE
+                            if(!contractPrices.isEmpty()){
                             Boolean isRouteExist = false;
                             Iterator itr = contractPrices.iterator();
                             while (itr.hasNext()) {
@@ -259,50 +138,39 @@ public class SlabbasedDeltaService {
                                 } else
                                     itr.remove();
                             }
-
                             if (!isRouteExist) {
                                 deltacontractdumpsToUpload.add(deltacontractdump);
-                                //newContractdumps.add(deltaToContractdump(deltacontractdump));
-                                //databaseService.updateDeltaAgreement(deltacontractdump, NEW_ROUTES, true);
-                                databaseService.updateSingleDeltaContractDumpUsingJDBC(deltacontractdump,NEW_ROUTES, true, logger);
-                                //deltacontractdumpNewRoutesId.add(deltacontractdump.getId().longValue());
-                                isInserted++;
-                                if(isInserted>1)
-                                    System.out.println("wait");
+                                databaseService.updateSingleDeltaContractDumpUsingJDBC(deltacontractdump, NEW_ROUTES, true, logger);
                             }
-
-                            // CHECK DATES
-
+                        }
+                            // CHECK SAME DATES
                             if (!contractPrices.isEmpty()) {
                                 Iterator itrDate = contractPrices.iterator();
-                                Boolean isDateExist = false;
+
                                 Boolean isDateConflict = false;
                                 while (itrDate.hasNext()) {
                                     ContractPrice cp = (ContractPrice) itrDate.next();
-                                    if (!deltaServiceImpl.isNotOverlapWithSameDates(cp, deltacontractdump)) {
-                                        isDateExist = true;
-                                        if (deltaServiceImpl.isSamePrice(cp, deltacontractdump)) {
+                                    if (deltaServiceImpl.isOverlapWithSameDates(cp, deltacontractdump)) {
+                                       if (deltaServiceImpl.isSamePrice(cp, deltacontractdump)) {
                                             deltacontractdump.setPriceId(cp.getPriceId().intValue());
-                                         //   databaseService.updateDeltaAgreement(deltacontractdump, RECORD_ALREADY_EXIST, false);
-                                            isInserted++;
-                                            if(isInserted>1)
-                                                System.out.println("wait");
-                                            databaseService.updateSingleDeltaContractDumpUsingJDBC(deltacontractdump,RECORD_ALREADY_EXIST, true, logger);
+                                            if(deltacontractdump.getRemark()!=null)
+                                                databaseService.updateSingleDeltaContractDumpUsingJDBC(deltacontractdump, deltacontractdump.getRemark(), true, logger);
+                                            else
+                                                databaseService.updateSingleDeltaContractDumpUsingJDBC(deltacontractdump, RECORD_ALREADY_EXIST, true, logger);
                                             itrDate.remove();
                                         } else {
                                             deltacontractdumpsToUpload.add(deltacontractdump);
-                                            //newContractdumps.add(deltaToContractdump(deltacontractdump));
                                             deltacontractdump.setPriceId(cp.getPriceId().intValue());
-                                            //databaseService.updateDeltaAgreement(deltacontractdump, NEW_PRICES, true);
-                                            isInserted++;
-                                            if(isInserted>1)
-                                                System.out.println("wait");
-                                            databaseService.updateSingleDeltaContractDumpUsingJDBC(deltacontractdump,NEW_PRICES, true, logger);
+                                            if(deltacontractdump.getRemark()!=null && !deltacontractdump.getRemark().equals("null"))
+                                                databaseService.updateSingleDeltaContractDumpUsingJDBC(deltacontractdump, deltacontractdump.getRemark(), true, logger);
+                                            else
+                                                databaseService.updateSingleDeltaContractDumpUsingJDBC(deltacontractdump, NEW_PRICES, true, logger);
                                             itrDate.remove();
                                         }
                                     }
                                 }
                             }
+                            // CHECK OVERLAP IN DIFFERENT DATES
                             if (!contractPrices.isEmpty()) {
                                 Iterator itrDateValidate = contractPrices.iterator();
                                 ArrayList<ContractPrice> cpListConflict = new ArrayList<ContractPrice>();
@@ -311,82 +179,43 @@ public class SlabbasedDeltaService {
                                     if (!deltaServiceImpl.isNotOverlapDates(cp, deltacontractdump)) {
                                         cpListConflict.add(cp);
                                         deltacontractdump.setPriceId(cp.getPriceId().intValue());
-                                     //   databaseService.updateDeltaAgreement(deltacontractdump, OVERLAP_WITH_EXISTING_DATES, true);
-                                        isInserted++;
-                                        if(isInserted>1)
-                                            System.out.println("wait");
-                                        databaseService.updateSingleDeltaContractDumpUsingJDBC(deltacontractdump,OVERLAP_WITH_EXISTING_DATES, true, logger);
-                                     //   newContractdumps.add(deltaToContractdump(deltacontractdump));
+                                        databaseService.updateSingleDeltaContractDumpUsingJDBC(deltacontractdump, OVERLAP_WITH_EXISTING_DATES, true, logger);
                                         deltacontractdumpsToUpload.add(deltacontractdump);
                                         itrDateValidate.remove();
                                     } else {
                                         // new date
-                                      //  newContractdumps.add(deltaToContractdump(deltacontractdump));
                                         deltacontractdumpsToUpload.add(deltacontractdump);
-                                        //databaseService.updateDeltaAgreement(deltacontractdump, NEW_DATES, true);
-                                        databaseService.updateSingleDeltaContractDumpUsingJDBC(deltacontractdump,NEW_DATES, true, logger);
-
-                                        isInserted++;
-                                        if(isInserted>1)
-                                            System.out.println("wait");
+                                        databaseService.updateSingleDeltaContractDumpUsingJDBC(deltacontractdump, NEW_DATES, true, logger);
                                         itrDateValidate.remove();
-
                                     }
-
                                 }
-
                             }
-
                         } else {
-                        //    newContractdumps.add(deltaToContractdump(deltacontractdump));
                             deltacontractdumpsToUpload.add(deltacontractdump);
-                            databaseService.updateSingleDeltaContractDumpUsingJDBC(deltacontractdump,NEW_SERVICE, true, logger);
-                            isInserted++;
-                            if(isInserted>1)
-                                System.out.println("wait");
-
-                        }
-
+                            databaseService.updateSingleDeltaContractDumpUsingJDBC(deltacontractdump, NEW_SERVICE, true, logger);
+                          }
                     } else {
-                        //databaseService.updateDeltaAgreement(deltacontractdump, ITEM_ID_NOT_CONFIGURED, false);
-                        databaseService.updateSingleDeltaContractDumpUsingJDBC(deltacontractdump,ITEM_ID_NOT_CONFIGURED, false, logger);
-                        isInserted++;
-                        if(isInserted>1)
-                            System.out.println("wait");
+                        databaseService.updateSingleDeltaContractDumpUsingJDBC(deltacontractdump, ITEM_ID_NOT_CONFIGURED, false, logger);
                     }
-
                 }
-
-            }
-
+            }else{
+                    databaseService.updateDeltaContractDump(deltacontractdump, NEW_CUSTOMER, true, logger);
+                }
         }
-
+    }
         // COMPARE AND UPDATE
-
         if (!contractPricesBothJourneyMap.isEmpty()) {
-
             for (Long priceId : contractPricesBothJourneyMap.keySet()) {
-
                 Boolean isForward = false;
-
                 Boolean isBackward = false;
-
                 Boolean deltaDumpHavPriceID = false;
-
                 for (Deltacontractdump deltacontractdump : contractPricesBothJourneyMap.get(priceId)) {
-
                     if (deltacontractdump.getProdNo().toString().endsWith("64"))
-
                         isBackward = true;
-
                     else
-
                         isForward = true;
-
                     if (deltacontractdump.getPriceId() != null)
-
                         deltaDumpHavPriceID = true;
-
                 }
                 if (isBackward && isForward && deltaDumpHavPriceID) {
                     contractPricesToDelete.add(priceId);
@@ -399,7 +228,6 @@ public class SlabbasedDeltaService {
                 }
             }
         }
-
         if (!contractPricesToUpdateJourney1.isEmpty()) {
             for (Long priceId : contractPricesToUpdateJourney1) {
                 ContractPrice contractPrice = queryService.findContractPriceObject(priceId);
@@ -460,124 +288,64 @@ public class SlabbasedDeltaService {
 
     private String checkPartyStatus(String customerNumber, String type) {
 
-
-
         Party childParty = null;
-
         Party parentParty = null;
-
         String status = NO_CHANGE_IN_PARTY;
-
         // Check child TO Parent
-
         if (type.equals("CHILD")) {
-
             childParty = queryService.findChildPartyBySSPK(customerNumber);
-
             if (null != childParty)
-
                 return CHILD_IS_NOW_PARENT;
-
         }
-
-        // check parent to child
-
+       // check parent to child
         if (type.equals("PARENT")) {
-
             parentParty = queryService.findParentParty(customerNumber);
-
             if (null != parentParty)
-
                 return CHILD_IS_NOW_PARENT;
-
         }
-
         // CHECK Independent is now child
-
-
-
         return NO_CHANGE_IN_PARTY;
-
     }
-
-
 
     private Contractdump deltaToContractdump(Deltacontractdump deltacontractdump) {
 
         Contractdump contractdump = new Contractdump();
-
-
-
         contractdump.setOrganizationNumber(deltacontractdump.getOrganizationNumber());
-
         contractdump.setOrganizationName(deltacontractdump.getOrganizationName());
-
         contractdump.setCustomerNumber(deltacontractdump.getCustomerNumber());
-
         contractdump.setCustomerName(deltacontractdump.getCustomerName());
-
         contractdump.setDiv(deltacontractdump.getDiv());
-
         contractdump.setRouteTo(deltacontractdump.getRouteTo());
-
         contractdump.setRouteFrom(deltacontractdump.getRouteFrom());
-
         contractdump.setEnabled(true);
-
         contractdump.setRemark(5);
-
         contractdump.setADsc(deltacontractdump.getADsc());
-
         contractdump.setArtikelgrupp(deltacontractdump.getArtikelgrupp());
-
         contractdump.setBasePrice(deltacontractdump.getBasePrice());
-
         contractdump.setCurr(deltacontractdump.getCurr());
-
         contractdump.setDiscLmtFrom(deltacontractdump.getDiscLmtFrom());
-
         contractdump.setDscLimCd(deltacontractdump.getDscLimCd());
-
         contractdump.setFileCountry(deltacontractdump.getFileCountry());
-
         contractdump.setFromDate(deltacontractdump.getFromDate());
-
         contractdump.setKgTill(deltacontractdump.getKgTill());
-
         contractdump.setPrice(deltacontractdump.getPrice());
-
         contractdump.setProdDescr(deltacontractdump.getProdDescr());
-
         contractdump.setProdNo(deltacontractdump.getProdNo());
-
         contractdump.setPrUM(deltacontractdump.getPrUM());
-
         contractdump.setRouteType(deltacontractdump.getRouteType());
-
         contractdump.setStatGrupp(deltacontractdump.getStatGrupp());
-
         contractdump.setToDate(deltacontractdump.getToDate());
-
         contractdump.setUpdated(false);
-
         contractdump.setZoneType(deltacontractdump.getZoneType());
 
-
-
         return contractdump;
-
     }
-
-
 
     private ArrayList<Contractdump> deltaToContractdumps(ArrayList<Deltacontractdump> deltacontractdumps) {
 
         ArrayList<Contractdump> contractdumps = new ArrayList<Contractdump>();
-
         for (Deltacontractdump deltacontractdump : deltacontractdumps) {
-
             Contractdump contractdump = new Contractdump();
-
             contractdump.setOrganizationNumber(deltacontractdump.getOrganizationNumber());
             contractdump.setOrganizationName(deltacontractdump.getOrganizationName());
             contractdump.setCustomerNumber(deltacontractdump.getCustomerNumber());
@@ -588,47 +356,26 @@ public class SlabbasedDeltaService {
             contractdump.setEnabled(true);
             contractdump.setRemark(6);
             contractdump.setADsc(deltacontractdump.getADsc());
-
             contractdump.setArtikelgrupp(deltacontractdump.getArtikelgrupp());
-
             contractdump.setBasePrice(deltacontractdump.getBasePrice());
-
             contractdump.setCurr(deltacontractdump.getCurr());
-
             contractdump.setDiscLmtFrom(deltacontractdump.getDiscLmtFrom());
-
             contractdump.setDscLimCd(deltacontractdump.getDscLimCd());
-
             contractdump.setFileCountry(deltacontractdump.getFileCountry());
-
             contractdump.setFromDate(deltacontractdump.getFromDate());
-
             contractdump.setKgTill(deltacontractdump.getKgTill());
-
             contractdump.setPrice(deltacontractdump.getPrice());
-
             contractdump.setProdDescr(deltacontractdump.getProdDescr());
-
             contractdump.setProdNo(deltacontractdump.getProdNo());
-
             contractdump.setPrUM(deltacontractdump.getPrUM());
-
             contractdump.setRouteType(deltacontractdump.getRouteType());
-
             contractdump.setStatGrupp(deltacontractdump.getStatGrupp());
-
             contractdump.setToDate(deltacontractdump.getToDate());
-
             contractdump.setUpdated(false);
-
             contractdump.setZoneType(deltacontractdump.getZoneType());
-
             contractdumps.add(contractdump);
-
         }
-
         return contractdumps;
-
     }
 
 }

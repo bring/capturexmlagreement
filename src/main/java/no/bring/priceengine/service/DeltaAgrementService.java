@@ -67,23 +67,23 @@ public class DeltaAgrementService {
             List<Deltacontractdump> dumps = null;
             SlabbasedDeltaService slabbasedDeltaService = new SlabbasedDeltaService();
 
-            ReadFile readFile = new ReadFile();
-            if (isZoneBased.equalsIgnoreCase("N"))
-                dumps = readFile.readDeltaFileData(fileLocation, fileCountry);
-            else
-                dumps = readFile.readZoneBasedDeltaFileData(fileLocation, fileCountry);
-            Boolean isDataInserted = databaseService.upsertDeltaContracts(dumps, logger);
-//            Boolean isDataInserted = true;
+//            ReadFile readFile = new ReadFile();
+//            if (isZoneBased.equalsIgnoreCase("N"))
+//                dumps = readFile.readDeltaFileData(fileLocation, fileCountry);
+//            else
+//                dumps = readFile.readZoneBasedDeltaFileData(fileLocation, fileCountry);
+//            Boolean isDataInserted = databaseService.upsertDeltaContracts(dumps, logger);
+            Boolean isDataInserted = true;
             if (isDataInserted) {
                 slabbasedDeltaService.processDeltaAgreements(fileCountry,logger);
                 System.out.println(" done ");
             }
         } else if (priceType.equals("2")) { // ReadPercentageBasedDELTAFile
             PercentagebasedDeltaService percentagebasedDeltaService = new PercentagebasedDeltaService();
-            ReadPercentageBasedDELTAFile readFile = new ReadPercentageBasedDELTAFile();
-            List<Percentagebaseddeltadump> dump = readFile.readFileData(fileLocation, fileCountry);
-            Boolean isDataInserted = databaseService.upsertPercentDeltaContracts(dump, logger);
-//            Boolean isDataInserted =  true;
+//            ReadPercentageBasedDELTAFile readFile = new ReadPercentageBasedDELTAFile();
+//            List<Percentagebaseddeltadump> dump = readFile.readFileData(fileLocation, fileCountry);
+//             Boolean isDataInserted = databaseService.upsertPercentDeltaContracts(dump, logger);
+            Boolean isDataInserted =  true;
             if (isDataInserted) {
                 percentagebasedDeltaService.processDeltaAgreements(fileCountry,logger);
                 System.out.println(" done ");
