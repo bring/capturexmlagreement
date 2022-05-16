@@ -148,9 +148,9 @@ public class BeanRepository {
         String value = null;
         JSONObject outterObject = new JSONObject();
         JSONObject object = new JSONObject();
-        JSONObject innerObject = new JSONObject();
+        org.codehaus.jettison.json.JSONObject innerObject = new org.codehaus.jettison.json.JSONObject();
         innerObject.put("Name","volWtConversionFactor");
-        innerObject.put("Value","1");
+        final org.codehaus.jettison.json.JSONObject value1 = innerObject.put("Value", "1");
         customAttributes.setVolWtConversionFactor(innerObject);
 //        object.put("volWtConversionFactor", innerObject);
 //        outterObject.put("CustomAttribute", object);
