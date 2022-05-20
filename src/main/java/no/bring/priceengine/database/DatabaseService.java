@@ -1,26 +1,80 @@
 package no.bring.priceengine.database;
 
-import cdh.CustomerModel;
-import no.bring.priceengine.dao.*;
-import no.bring.priceengine.service.ExcelService;
-import no.bring.priceengine.util.PriceEngineConstants;
+import java.io.ByteArrayOutputStream;
+import java.sql.Types;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.ListIterator;
+import java.util.Map;
+import java.util.Properties;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Logger;
+import java.util.stream.Collectors;
+
+import javax.activation.DataHandler;
+import javax.activation.DataSource;
+import javax.mail.Authenticator;
+import javax.mail.Message;
+import javax.mail.PasswordAuthentication;
+import javax.mail.Session;
+import javax.mail.Transport;
+import javax.mail.internet.InternetAddress;
+import javax.mail.internet.MimeBodyPart;
+import javax.mail.internet.MimeMessage;
+import javax.mail.internet.MimeMultipart;
+import javax.mail.util.ByteArrayDataSource;
+import javax.persistence.EntityManager;
+import javax.persistence.EntityManagerFactory;
+import javax.persistence.PersistenceException;
+import javax.persistence.Query;
+import javax.transaction.Transactional;
+
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.time.DateFormatUtils;
 import org.springframework.orm.hibernate5.HibernateQueryException;
 import org.springframework.stereotype.Service;
 
-import javax.persistence.*;
-import javax.transaction.Transactional;
-import java.sql.*;
-import java.text.DateFormat;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.time.*;
-import java.util.*;
-import java.util.Date;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.logging.Logger;
-import java.util.stream.Collectors;
+import com.itextpdf.text.Document;
+import com.itextpdf.text.Font;
+import com.itextpdf.text.Phrase;
+import com.itextpdf.text.pdf.PdfPCell;
+import com.itextpdf.text.pdf.PdfPTable;
+import com.itextpdf.text.pdf.PdfWriter;
+
+import cdh.CustomerModel;
+import no.bring.priceengine.dao.Cdcustomcountryroutetp;
+import no.bring.priceengine.dao.Cdhomedeliverytp;
+import no.bring.priceengine.dao.Contract;
+import no.bring.priceengine.dao.ContractComponent;
+import no.bring.priceengine.dao.ContractPrice;
+import no.bring.priceengine.dao.ContractRole;
+import no.bring.priceengine.dao.Contractdump;
+import no.bring.priceengine.dao.Contractdumpservice;
+import no.bring.priceengine.dao.Country;
+import no.bring.priceengine.dao.Customervolfactordump;
+import no.bring.priceengine.dao.Deltacontractdump;
+import no.bring.priceengine.dao.Item;
+import no.bring.priceengine.dao.Party;
+import no.bring.priceengine.dao.Percentagebaseddeltadump;
+import no.bring.priceengine.dao.Percentagebaseddump;
+import no.bring.priceengine.dao.Price;
+import no.bring.priceengine.dao.SlabBasedPriceEntry;
+import no.bring.priceengine.dao.Surchargedump;
+import no.bring.priceengine.service.ExcelService;
 
 
 @Service
@@ -130,6 +184,11 @@ public class DatabaseService {
             + " WHERE contractcomponent_id =? ";
     private final String TERMINATE_CONTRACTCOMPONENT_SQL = " UPDATE core.contractcomponent SET end_dt = ?, last_update_dt=?, last_update_user=?, last_update_tx_id=? "
             + "WHERE contractcomponent_id = ? ";
+    
+    private final String PARENT_IS_NOW_CHILD = "Parent is now a child";
+    private final String CHILD_IS_NOW_PARENT = "Child is now a parent";
+    private final String CHILD_HAS_CHANGED_PARENT = "Child has changed parent";
+    
     private final QueryService queryService = new QueryService();
     EntityManager entityManager = JPAUtil.getEntityManagerFactory().createEntityManager();
 
@@ -4676,6 +4735,194 @@ public class DatabaseService {
             deletePrice(oldPirce);
         }
     }
+    
+
+	public static Set<String> buildParentCustomerSetDeltaContractDump(List<Deltacontractdump> list) {
+		Set<String> customerParentSet=new HashSet<>();
+		for(Deltacontractdump d:list) {
+			String key=d.getCustomerNumber()+"~"+d.getOrganizationNumber();
+			customerParentSet.add(key);
+		}
+		return customerParentSet;
+	}
+	
+	public static Set<String> buildParentCustomerSetPercentagebaseddeltadump(List<Percentagebaseddeltadump> list) {
+		Set<String> customerParentSet=new HashSet<>();
+		for(Percentagebaseddeltadump d:list) {
+			String key=d.getCustomerNumber()+"~"+d.getParentCustomerNumber();
+			customerParentSet.add(key);
+		}
+		return customerParentSet;
+	}
+	public void email() {
+		String smtpHost = "smtp.posten.no"; 
+		int smtpPort = 25; 
+
+		String sender = ""; //TODO replace this with a valid sender email address
+		
+		String recipient = ""; //TODO replace this with a valid recipient email address
+		
+		String content = "Hi,\n\nSharing the PDF for voilation of parent child details in delta agreements. \n\n Thanks and Regards,\n Price Engine Team"; //this will be the text of the email
+		
+		String subject = "PARENT CHILD VOILATION CASES IN DELTA AGREEMENTS"; //this will be the subject of the email
+		
+		String USERNAME="";//TODO add username for sending email
+		
+		String Password="";//TODO add Passowrd for email sender
+		
+		Properties properties = new Properties();
+		
+		properties.put("mail.smtp.host", smtpHost);
+		properties.put("mail.smtp.port", smtpPort);    
+		properties.put("mail.smtp.auth", true);
+		
+		Session session = Session.getInstance(properties, new Authenticator() {
+			@Override
+			protected PasswordAuthentication getPasswordAuthentication() {
+				return new PasswordAuthentication(USERNAME,Password );
+			}
+		});
+
+		ByteArrayOutputStream outputStream = null;
+
+		try {           
+			MimeBodyPart textBodyPart = new MimeBodyPart();
+			textBodyPart.setText(content);
+
+			outputStream = new ByteArrayOutputStream();
+			writePdf(outputStream);
+			byte[] bytes = outputStream.toByteArray();
+			if(bytes.length==0) {
+				return;
+			}
+
+			DataSource dataSource = new ByteArrayDataSource(bytes, "application/pdf");
+			MimeBodyPart pdfBodyPart = new MimeBodyPart();
+			pdfBodyPart.setDataHandler(new DataHandler(dataSource));
+			pdfBodyPart.setFileName("voilation-cases.pdf");
+
+			MimeMultipart mimeMultipart = new MimeMultipart();
+			mimeMultipart.addBodyPart(textBodyPart);
+			mimeMultipart.addBodyPart(pdfBodyPart);
+
+			InternetAddress iaSender = new InternetAddress(sender);
+			InternetAddress iaRecipient = new InternetAddress(recipient);
+
+			MimeMessage mimeMessage = new MimeMessage(session);
+			mimeMessage.setSender(iaSender);
+			mimeMessage.setSubject(subject);
+			mimeMessage.setRecipient(Message.RecipientType.TO, iaRecipient);
+			mimeMessage.setContent(mimeMultipart);
+
+			Transport.send(mimeMessage);
+
+			System.out.println("sent from " + sender + 
+					", to " + recipient + 
+					"; server = " + smtpHost + ", port =  " + smtpPort);         
+		} catch(Exception ex) {
+			ex.printStackTrace();
+		} finally {
+			if(null != outputStream) {
+
+				try { outputStream.close(); outputStream = null; }
+				catch(Exception ex) { }
+			}
+		}
+	}
+
+	public void writePdf(java.io.OutputStream outputStream) throws Exception {
+		String[] headers = new String[]{"S.No", "IMI PARENT", "IMI CHILD", "PE PARENT","PE CHILD","REMARK"};
+		
+		Document document = new Document();
+
+		try {
+			PdfWriter.getInstance(document, outputStream);
+			document.open();
+
+			
+			Font fontHeader = new Font(Font.FontFamily.TIMES_ROMAN, 12, Font.BOLD);
+			Font fontRow = new Font(Font.FontFamily.TIMES_ROMAN, 10, Font.NORMAL);
+
+			PdfPTable table = new PdfPTable(headers.length);
+			for (String header : headers) {
+				PdfPCell cell = new PdfPCell();
+				cell.setGrayFill(0.9f);
+				cell.setPhrase(new Phrase(header.toUpperCase(), fontHeader));
+				table.addCell(cell);
+			}
+			table.completeRow();
+
+			try {
+				int sno=1;
+				Set<String> set=buildParentCustomerSetDeltaContractDump(queryService.findAllDeltaContractdumpsForParentChild(PARENT_IS_NOW_CHILD));
+						set.addAll(buildParentCustomerSetPercentagebaseddeltadump(queryService.findAllpercendumpsForParentChild(PARENT_IS_NOW_CHILD)));
+				for(String key:set) {
+					String[] arr=key.split("~");
+					List<Party> parties=queryService.findPartyListForParentChildVoilation(arr[0]);
+					if(parties==null || parties.isEmpty()) {
+						parties=queryService.findPartyListForParentChildVoilationForParentNull(arr[0]);
+					}
+					for(Party p:parties) {
+						String row=sno+"~";
+						String IMI=arr[0]+"~"+arr[1]+"~";
+						String PE=p.getParentSourceSystemRecordPk()+"~"+p.getSourceSystemRecordPk()+"~";
+						row+=IMI+PE+"PARENT IS NOW CHILD";
+						insertRow(row,table);
+						sno++;
+						row="";
+					}
+				}
+				set=buildParentCustomerSetDeltaContractDump(queryService.findAllDeltaContractdumpsForParentChild(CHILD_HAS_CHANGED_PARENT));
+				set.addAll(buildParentCustomerSetPercentagebaseddeltadump(queryService.findAllpercendumpsForParentChild(CHILD_HAS_CHANGED_PARENT)));
+				for(String key:set) {
+					String[] arr=key.split("~");
+					List<Party> parties=queryService.findPartyListForParentChildVoilationForChildHasChengedarents(arr[1]);
+					for(Party p:parties) {
+						String row=sno+"~";
+						String IMI=arr[0]+"~"+arr[1]+"~";
+						String PE=p.getParentSourceSystemRecordPk()+"~"+p.getSourceSystemRecordPk()+"~";
+						row+=IMI+PE+"CHILD HAS CHANGED PARENTS";
+						insertRow(row,table);
+						sno++;
+						row="";
+					}
+				}
+				set=buildParentCustomerSetDeltaContractDump(queryService.findAllDeltaContractdumpsForParentChild(CHILD_IS_NOW_PARENT));
+				set.addAll(buildParentCustomerSetPercentagebaseddeltadump(queryService.findAllpercendumpsForParentChild(CHILD_IS_NOW_PARENT)));
+				for(String key:set) {
+					String[] arr=key.split("~");
+					List<Party> parties=queryService.findPartyListForParentChildVoilation(arr[0]);
+					for(Party p:parties) {
+						String row=sno+"~";
+						String IMI=arr[0]+"~"+arr[1]+"~";
+						String PE=p.getParentSourceSystemRecordPk()+"~"+p.getSourceSystemRecordPk()+"~";
+						row+=IMI+PE+"CHILD IS NOW PARENT";
+						insertRow(row,table);
+						sno++;
+						row="";
+					}
+				}
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			
+
+			document.addTitle("PARENT CHILD VOILATION");
+			document.add(table);
+			document.close();
+		}catch(Exception e) {
+			System.out.println("Exception");
+		}
+	}
+	
+	public void insertRow(String str,PdfPTable table) {
+		String[] rows=str.split("~");
+			for (String data : rows) {
+				Phrase phrase = new Phrase(data);
+				table.addCell(new PdfPCell(phrase));
+			}
+			table.completeRow();
+	}
 
 }
 
