@@ -83,7 +83,9 @@ public class DatabaseService {
             "branch, parent_customer_number, parent_customer_name, customer_number, customer_name, prodno, startdate, enddate, routetype, from_location, to_location, precentage_discount, updated, enabled, filecountry, zone_type, remark, price_id) " +
             "VALUES ";
     private final String INSERT_PRICE_SQL = "insert into core.price (base_price, created_dt, created_by_user, end_dt, item_id, last_update_tx_id, percent_based_price, percentage_attribute_tp_cd, price_calc_tp_cd, price_def_tp_cd, price_lower_bound,  price_per_attribute_tp_cd, price_per_attribute_val_adj, price_per, price_status_tp_cd,  price_alternative_item_id,price_tp_cd, price_upper_bound, start_dt,last_update_user, last_update_dt)  values ( ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
-    private final String INSERT_PRICE_HISTORY_SQL = "insert into core.pricehistory (base_price, created_dt, created_by_user, end_dt, item_id, last_update_tx_id, percent_based_price, percentage_attribute_tp_cd, price_calc_tp_cd, price_def_tp_cd, price_lower_bound,  price_per_attribute_tp_cd, price_per_attribute_val_adj, price_per, price_status_tp_cd,  price_alternative_item_id,price_tp_cd, price_upper_bound, start_dt,last_update_user, price_id)  values (?, ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+
+    private final String INSERT_PRICE_HISTORY_SQL = "insert into core.pricehistory (base_price, created_by_user, end_dt, item_id, last_update_tx_id, percent_based_price, percentage_attribute_tp_cd, price_calc_tp_cd, price_def_tp_cd, price_lower_bound,  price_per_attribute_tp_cd, price_per_attribute_val_adj, price_per, price_status_tp_cd,  price_alternative_item_id, price_tp_cd,  start_dt , last_update_user, price_id, created_dt)  values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
+
     private final String INSERT_PRICE_SQL_MAX_PRICE_ID = "insert into core.price ( base_price, created_dt, created_by_user, end_dt, item_id, last_update_tx_id, percent_based_price, percentage_attribute_tp_cd, price_calc_tp_cd, price_def_tp_cd, price_lower_bound,  price_per_attribute_tp_cd, price_per_attribute_val_adj, price_per, price_status_tp_cd,  price_alternative_item_id,price_tp_cd, price_upper_bound, start_dt,last_update_user, last_update_dt, price_id)  values ( ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
     private final String INSERT_PERCENTAGEBASED_PRICE_SQL = "insert into core.price ( percent_based_price, created_dt, created_by_user, end_dt, item_id, last_update_tx_id, percentage_attribute_tp_cd, price_calc_tp_cd, price_def_tp_cd, price_lower_bound,  price_per_attribute_tp_cd, price_per_attribute_val_adj, price_per, price_status_tp_cd,  price_alternative_item_id,price_tp_cd, price_upper_bound, start_dt)  values ( ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
     private final String INSERT_SURCHARGE_PERCENTAGEBASED_PRICE_SQL = "insert into core.price (percent_based_price, created_dt, created_by_user, end_dt, item_id, last_update_tx_id, percentage_attribute_tp_cd, price_calc_tp_cd, price_def_tp_cd, price_lower_bound,  price_per_attribute_tp_cd, price_per_attribute_val_adj, price_per, price_status_tp_cd,  price_alternative_item_id,price_tp_cd, price_upper_bound, start_dt, price_id )  values ( ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
@@ -1499,29 +1501,36 @@ public class DatabaseService {
             else
             	q.setParameter(1, Types.DOUBLE);
 
-            q.setParameter(2, java.sql.Date.valueOf(LocalDate.now()));
-            q.setParameter(3, AUTOMATION_USER);
-            q.setParameter(4, java.sql.Date.valueOf(price.getEndDt()));
+          //  q.setParameter(2, createDt);
+            q.setParameter(2, AUTOMATION_USER);
+            q.setParameter(3, java.sql.Date.valueOf(price.getEndDt()));
 
-            q.setParameter(5, price.getItemId());
-            q.setParameter(6, getTxId());
-            q.setParameter(7, Types.DOUBLE);
-            q.setParameter(8, Types.DOUBLE);
-            q.setParameter(9, price.getPriceCalcTpCd());
-            q.setParameter(10, price.getPriceDefTpCd());
+            q.setParameter(4, price.getItemId());
+            q.setParameter(5, getTxId());
+            if(price.getPercentBasedPrice()!=null)
+                q.setParameter(6, price.getPercentBasedPrice());
+            else
+                q.setParameter(6, Types.NULL);
+            if(price.getPercentageAttributeTpCd()!=null)
+                q.setParameter(7, price.getPercentageAttributeTpCd());
+                else
+                q.setParameter(7, Types.NULL);
 
-            q.setParameter(11, Types.DOUBLE);
-            q.setParameter(12, 0);
-            q.setParameter(13, Types.INTEGER);
-            q.setParameter(14, 1);
-            q.setParameter(15, Types.INTEGER);
-            q.setParameter(16, Types.INTEGER);
-            q.setParameter(17, 3);
-            q.setParameter(18, new Date());
-            q.setParameter(19, java.sql.Date.valueOf(price.getStartDt()));
-            q.setParameter(20, Types.VARCHAR);
+            q.setParameter(8, price.getPriceCalcTpCd());
+            q.setParameter(9, price.getPriceDefTpCd());
+            q.setParameter(10, Types.NULL);
+            q.setParameter(11, Types.NULL);
+            q.setParameter(12, Types.NULL);
+            q.setParameter(13, 1);
+            q.setParameter(14, Types.NULL);
+            q.setParameter(15, Types.NULL);
+            q.setParameter(16, 3);
+
+            q.setParameter(17, java.sql.Date.valueOf(price.getStartDt()));
+            q.setParameter(18, AUTOMATION_USER);
           //  q.setParameter(21, Types.DATE); // cehck what date is saving
-            q.setParameter(21, price.getPriceId());
+            q.setParameter(19, price.getPriceId());
+            q.setParameter(20, new Date());
             int i = q.executeUpdate();
             entityManager.getTransaction().commit();
             entityManager.close();

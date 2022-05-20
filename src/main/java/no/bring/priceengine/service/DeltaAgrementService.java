@@ -1,15 +1,8 @@
 package no.bring.priceengine.service;
 
-import com.sun.xml.internal.ws.spi.db.DatabindingException;
-import no.bring.priceengine.dao.Contractdump;
 import no.bring.priceengine.dao.Deltacontractdump;
-import no.bring.priceengine.dao.Percentagebaseddeltadump;
-import no.bring.priceengine.dao.Percentagebaseddump;
 import no.bring.priceengine.database.DatabaseService;
 import no.bring.priceengine.database.QueryService;
-import no.bring.priceengine.precentagebased.ReadPercentageBasedDELTAFile;
-import no.bring.priceengine.precentagebased.ReadPercentageBasedFile;
-
 import java.text.ParseException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -67,13 +60,13 @@ public class DeltaAgrementService {
             List<Deltacontractdump> dumps = null;
             SlabbasedDeltaService slabbasedDeltaService = new SlabbasedDeltaService();
 
-            ReadFile readFile = new ReadFile();
-            if (isZoneBased.equalsIgnoreCase("N"))
-                dumps = readFile.readDeltaFileData(fileLocation, fileCountry);
-            else
-                dumps = readFile.readZoneBasedDeltaFileData(fileLocation, fileCountry);
-            Boolean isDataInserted = databaseService.upsertDeltaContracts(dumps, logger);
-//            Boolean isDataInserted = true;
+//            ReadFile readFile = new ReadFile();
+//            if (isZoneBased.equalsIgnoreCase("N"))
+//                dumps = readFile.readDeltaFileData(fileLocation, fileCountry);
+//            else
+//                dumps = readFile.readZoneBasedDeltaFileData(fileLocation, fileCountry);
+//            Boolean isDataInserted = databaseService.upsertDeltaContracts(dumps, logger);
+            Boolean isDataInserted = true;
             if (isDataInserted) {
                 slabbasedDeltaService.processDeltaAgreements(fileCountry,logger);
                 System.out.println(" done ");

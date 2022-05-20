@@ -114,7 +114,7 @@ public class SlabbasedDeltaService {
                         List<ContractPrice> contractPrices = queryService.findContractPriceByComponentID(contractRole.getContractComponent().getContractComponentId(), itemInCP.getItemId());
                         if (contractPrices != null && !contractPrices.isEmpty()) {
                             // CHECK ITEM
-                            ArrayList<Integer> existinsItems = new ArrayList<Integer>();
+                            Set<Integer> existinsItems = new HashSet<Integer>();
                             Iterator iter = contractPrices.iterator();
                             while (iter.hasNext()) {
                                 ContractPrice cp = (ContractPrice) iter.next();
@@ -155,7 +155,7 @@ public class SlabbasedDeltaService {
                                     if (deltaServiceImpl.isOverlapWithSameDates(cp, deltacontractdump)) {
                                        if (deltaServiceImpl.isSamePrice(cp, deltacontractdump)) {
                                             deltacontractdump.setPriceId(cp.getPriceId().intValue());
-                                            if(deltacontractdump.getRemark()!=null)
+                                            if(deltacontractdump.getRemark()!=null && !deltacontractdump.getRemark().equals("null"))
                                                 databaseService.updateSingleDeltaContractDumpUsingJDBC(deltacontractdump, deltacontractdump.getRemark(), true, logger);
                                             else
                                                 databaseService.updateSingleDeltaContractDumpUsingJDBC(deltacontractdump, RECORD_ALREADY_EXIST, true, logger);
@@ -226,7 +226,7 @@ public class SlabbasedDeltaService {
                     contractPricesToDelete.add(priceId);
                 } else if (isForward && !isBackward && deltaDumpHavPriceID) {
                     contractPricesToUpdateJourney2.add(priceId);
-                    databaseService.updateDeltaAggRemovePrice(priceId);
+                   // databaseService.updateDeltaAggRemovePrice(priceId);
                 } else if (!isForward && isBackward && deltaDumpHavPriceID) {
                     contractPricesToUpdateJourney1.add(priceId);
                     databaseService.updateDeltaAggRemovePrice(priceId);

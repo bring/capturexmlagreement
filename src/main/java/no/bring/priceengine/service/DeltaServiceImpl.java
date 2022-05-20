@@ -102,7 +102,8 @@ public class DeltaServiceImpl {
                         Boolean result = false;
                         List<SlabBasedPriceEntry> slabs = queryService.findSlabbasedPriceEntry(slabBasedPrice.getSlabBasedPriceId());
                         for (SlabBasedPriceEntry slab : slabs) {
-                            if (slab.getPriceValue().equals(new BigDecimal(deltacontractdump.getPrice()))) {
+                            if (slab.getPriceValue().doubleValue()== deltacontractdump.getBasePrice().doubleValue()
+                            || slab.getPriceValue().doubleValue() == deltacontractdump.getPrice().doubleValue()) {
                                 result = true;
                                 return true;
                             }
