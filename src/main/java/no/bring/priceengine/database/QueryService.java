@@ -8526,7 +8526,228 @@ public class QueryService {
     }
     
 
+    @org.springframework.data.jpa.repository.Query
+
+    public List<Deltacontractdump> findAllDeltaContractdumpsForParentChild(String remark) throws DataAccessException {
+
+        System.out.println("Inside findAllDeltaContractdumps() ");
+
+        EntityManager em = JPAUtil.getEntityManagerFactory().createEntityManager();
+
+        try {
+
+         List<Query> q=em.createNativeQuery("select organization_number,customer_number from core.deltacontractdump where remark='"+remark+"'").getResultList();
+         Iterator listIterator = q.listIterator();
+         List<Deltacontractdump> list=new ArrayList<Deltacontractdump>();
+         while (listIterator.hasNext()) {
+             Object[] object = (Object[]) listIterator.next();
+             Deltacontractdump delta=new Deltacontractdump();
+             if(object[0]!=null) {
+            	 delta.setOrganizationNumber(object[0].toString());
+             }
+             if(object[1]!=null) {
+            	 delta.setCustomerNumber(object[1].toString());
+             }
+             list.add(delta);
+             
+         }
+         return list;
+        } catch (HibernateException he) {
+
+            he.printStackTrace();
+
+            System.exit(1);
+
+            return null;
+
+        } catch (Exception e) {
+
+            e.printStackTrace();
+
+            System.exit(1);
+
+            return null;
+
+        } finally {
+
+            em.clear();
+
+            em.close();
+
+        }
+
+    }
     
+
+
+    @org.springframework.data.jpa.repository.Query
+
+    public List<Percentagebaseddeltadump> findAllpercendumpsForParentChild(String remark) throws DataAccessException {
+
+        System.out.println("Inside findAllDeltaContractdumps() ");
+
+        EntityManager em = JPAUtil.getEntityManagerFactory().createEntityManager();
+
+        try {
+
+         List<Query> q=em.createNativeQuery("select parent_customer_number,customer_number from core.percentagebaseddeltadump where remark='"+remark+"'").getResultList();
+         Iterator listIterator = q.listIterator();
+         List<Percentagebaseddeltadump> list=new ArrayList<Percentagebaseddeltadump>();
+         while (listIterator.hasNext()) {
+             Object[] object = (Object[]) listIterator.next();
+             Percentagebaseddeltadump delta=new Percentagebaseddeltadump();
+             if(object[0]!=null) {
+            	 delta.setParentCustomerNumber(object[0].toString());
+             }
+             if(object[1]!=null) {
+            	 delta.setCustomerNumber(object[1].toString());
+             }
+             list.add(delta);
+             
+         }
+         return list;
+        } catch (HibernateException he) {
+
+            he.printStackTrace();
+
+            System.exit(1);
+
+            return null;
+
+        } catch (Exception e) {
+
+            e.printStackTrace();
+
+            System.exit(1);
+
+            return null;
+
+        } finally {
+
+            em.clear();
+
+            em.close();
+
+        }
+
+    }
+    
+    
+    
+    @org.springframework.data.jpa.repository.Query
+    public List<Party> findPartyListForParentChildVoilation(String organizationId) throws DataAccessException {
+        System.out.println("Inside findContractBySSPK() ");
+        EntityManager em = JPAUtil.getEntityManagerFactory().createEntityManager();
+        List<Party> parties=new ArrayList<Party>();
+        try {
+        	List<Query> q=em.createNativeQuery("select parent_source_system_record_pk,source_system_record_pk from core.party where parent_source_system_record_pk='"+organizationId+"'").getResultList();
+            Iterator listIterator = q.listIterator();
+            while (listIterator.hasNext()) {
+                Object[] object = (Object[]) listIterator.next();
+                Party party=new Party();
+                if(object[0]!=null) {
+                	party.setParentSourceSystemRecordPk(object[0].toString());
+                }
+                if(object[1]!=null) {
+                	party.setSourceSystemRecordPk(object[1].toString());
+                }
+                parties.add(party);
+                
+            }
+                    return parties;
+        } catch (HibernateException he) {
+            he.printStackTrace();
+            System.out.println("Organization id ::: " + organizationId);
+            System.exit(1);
+            return null;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.out.println("Organization id ::: " + organizationId);
+            System.exit(1);
+            return null;
+        } finally {
+            em.clear();
+            em.close();
+        }
+    }
+    
+    
+    @org.springframework.data.jpa.repository.Query
+    public List<Party> findPartyListForParentChildVoilationForParentNull(String organizationId) throws DataAccessException {
+        System.out.println("Inside findContractBySSPK() ");
+        EntityManager em = JPAUtil.getEntityManagerFactory().createEntityManager();
+        List<Party> parties=new ArrayList<Party>();
+        try {
+        	List<Query> q=em.createNativeQuery("select parent_source_system_record_pk,source_system_record_pk from core.party where source_system_record_pk='"+organizationId+"' and parent_source_system_record_pk is null").getResultList();
+            Iterator listIterator = q.listIterator();
+            while (listIterator.hasNext()) {
+                Object[] object = (Object[]) listIterator.next();
+                Party party=new Party();
+                if(object[0]!=null) {
+                	party.setParentSourceSystemRecordPk(object[0].toString());
+                }
+                if(object[1]!=null) {
+                	party.setSourceSystemRecordPk(object[1].toString());
+                }
+                parties.add(party);
+                
+            }
+                    return parties;
+        } catch (HibernateException he) {
+            he.printStackTrace();
+            System.out.println("Organization id ::: " + organizationId);
+            System.exit(1);
+            return null;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.out.println("Organization id ::: " + organizationId);
+            System.exit(1);
+            return null;
+        } finally {
+            em.clear();
+            em.close();
+        }
+    }
+    
+    @org.springframework.data.jpa.repository.Query
+    public List<Party> findPartyListForParentChildVoilationForChildHasChengedarents(String customerNumber) throws DataAccessException {
+        System.out.println("Inside findContractBySSPK() ");
+        EntityManager em = JPAUtil.getEntityManagerFactory().createEntityManager();
+        List<Party> parties=new ArrayList<Party>();
+        try {
+        	List<Query> q=em.createNativeQuery("select parent_source_system_record_pk,source_system_record_pk from core.party where source_system_record_pk='"+customerNumber+"'").getResultList();
+            Iterator listIterator = q.listIterator();
+            while (listIterator.hasNext()) {
+                Object[] object = (Object[]) listIterator.next();
+                Party party=new Party();
+                if(object[0]!=null) {
+                	party.setParentSourceSystemRecordPk(object[0].toString());
+                }
+                if(object[1]!=null) {
+                	party.setSourceSystemRecordPk(object[1].toString());
+                }
+                parties.add(party);
+                
+            }
+                    return parties;
+        } catch (HibernateException he) {
+            he.printStackTrace();
+            System.out.println("Organization id ::: " + customerNumber);
+            System.exit(1);
+            return null;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.out.println("Organization id ::: " + customerNumber);
+            System.exit(1);
+            return null;
+        } finally {
+            em.clear();
+            em.close();
+        }
+    }
 
 
 

@@ -88,6 +88,9 @@ public class DeltaAgrementService {
 
 
         }
+        
+        if(priceType.equals("1") || priceType.equals("2"))
+        	databaseService.email();
     }
 }
 
